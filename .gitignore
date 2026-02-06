@@ -1,0 +1,21 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Virtual Environments (Adjust name if yours is different) ---
+venv/
+env/
+.venv/
+.env
+
+# --- PlotForge Specific (Optional: Ignore output images) ---
+*.png
+*.jpg
+*.svg
+# Keep the 'assets' folder if you have example images you DO want to track
+!assets/
+
+# --- IDE Settings (Optional but recommended) ---
+.vscode/
+.idea/
