@@ -40,6 +40,22 @@ class SaveConfig:
 
 
 @dataclass
+class ReferenceLinesConfig:
+    # Line 1
+    line1_enabled: bool = False
+    x1: float = 0.0
+
+    # Line 2
+    line2_enabled: bool = False
+    x2: float = 0
+
+    # Shared Style
+    linewidth: float = 1.5
+    linestyle: str = "--"
+    color: str = "grey"
+
+
+@dataclass
 class AxesConfig:
     # Limits (Bounds)
     x_min: Optional[float] = None
@@ -50,6 +66,9 @@ class AxesConfig:
     # Tick Intervals
     x_major_interval: Optional[float] = None
     y_major_interval: Optional[float] = None
+
+    # Reference Lines (Replaces Range/VLine)
+    ref_lines: ReferenceLinesConfig = field(default_factory=ReferenceLinesConfig)
 
 
 @dataclass

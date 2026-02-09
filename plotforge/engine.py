@@ -102,6 +102,27 @@ class BasePlotEngine(PlotEngine):
                     if abs(tick.get_loc() - config.x_min) < 1e-9:
                         tick.label1.set_visible(False)
 
+        # 4. Reference Lines
+        if config.ref_lines:
+            # Line 1
+            if config.ref_lines.line1_enabled:
+                ax.axvline(
+                    x=config.ref_lines.x1,
+                    color=config.ref_lines.color,
+                    linewidth=config.ref_lines.linewidth,
+                    linestyle=config.ref_lines.linestyle,
+                    zorder=0
+                )
+            # Line 2
+            if config.ref_lines.line2_enabled:
+                ax.axvline(
+                    x=config.ref_lines.x2,
+                    color=config.ref_lines.color,
+                    linewidth=config.ref_lines.linewidth,
+                    linestyle=config.ref_lines.linestyle,
+                    zorder=0
+                )
+
     def apply_legend(self, ax: plt.Axes, config) -> None:
         if not config.enabled:
             legend = ax.get_legend()

@@ -9,7 +9,8 @@ from PyQt5.QtCore import pyqtSignal, Qt, QSize
 from plotforge.config import (
     ScatterPlotConfig, TrendlineConfig, SaveConfig,
     StatisticalOverlayConfig, AxesConfig, LegendConfig,
-    KDEConfig, CIConfig, DEFAULT_PALETTE, DEFAULT_MARKERS
+    KDEConfig, CIConfig, ReferenceLinesConfig,
+    DEFAULT_PALETTE, DEFAULT_MARKERS
 )
 
 
@@ -184,6 +185,49 @@ class ConfigPanel(QWidget):
         tick_layout.addWidget(QLabel("Y Major:"))
         tick_layout.addWidget(self.spin_y_major)
         visual_layout.addRow(tick_layout)
+
+        # Reference Lines (Updated: Two independent lines)
+        visual_layout.addRow(QLabel("<b>Reference Lines</b>"))
+
+        # Line 1 Row
+        line1_layout = QHBoxLayout()
+        self.check_line1 = QCheckBox("V-Line 1")
+        self.check_line1.toggled.connect(self._toggle_ref_lines)
+        self.spin_x1 = QDoubleSpinBox()
+        self.spin_x1.setRange(-1e6, 1e6)
+        self.spin_x1.setEnabled(False)
+        self.spin_x1.setToolTip("X Position for Line 1")
+        line1_layout.addWidget(self.check_line1)
+        line1_layout.addWidget(self.spin_x1)
+        visual_layout.addRow(line1_layout)
+
+        # Line 2 Row
+        line2_layout = QHBoxLayout()
+        self.check_line2 = QCheckBox("V-Line 2")
+        self.check_line2.toggled.connect(self._toggle_ref_lines)
+        self.spin_x2 = QDoubleSpinBox()
+        self.spin_x2.setRange(-1e6, 1e6)
+        self.spin_x2.setEnabled(False)
+        self.spin_x2.setToolTip("X Position for Line 2")
+        line2_layout.addWidget(self.check_line2)
+        line2_layout.addWidget(self.spin_x2)
+        visual_layout.addRow(line2_layout)
+
+        # Style Controls (Shared)
+        ref_style_layout = QHBoxLayout()
+        self.spin_ref_width = QDoubleSpinBox()
+        self.spin_ref_width.setRange(0.1, 10.0)
+        self.spin_ref_width.setValue(1.5)
+
+        self.combo_ref_style = QComboBox()
+        self.combo_ref_style.addItems(["--", "-", "-.", ":"])
+
+        ref_style_layout.addWidget(QLabel("Width:"))
+        ref_style_layout.addWidget(self.spin_ref_width)
+        ref_style_layout.addWidget(QLabel("Style:"))
+        ref_style_layout.addWidget(self.combo_ref_style)
+        ref_style_layout.addStretch()
+        visual_layout.addRow(ref_style_layout)
 
         # Legend Position
         legend_layout = QHBoxLayout()
@@ -377,6 +421,10 @@ class ConfigPanel(QWidget):
         self.spin_x_major.setEnabled(checked)
         self.spin_y_major.setEnabled(checked)
 
+    def _toggle_ref_lines(self):
+        self.spin_x1.setEnabled(self.check_line1.isChecked())
+        self.spin_x2.setEnabled(self.check_line2.isChecked())
+
     def _toggle_legend(self, checked):
         self.spin_leg_x.setEnabled(checked)
         self.spin_leg_y.setEnabled(checked)
@@ -467,6 +515,18 @@ class ConfigPanel(QWidget):
         )
 
         # 4. Axes Visuals
+        # Reference Lines
+        ref_config = ReferenceLinesConfig(
+            line1_enabled=self.check_line1.isChecked(),
+            x1=self.spin_x1.value(),
+            line2_enabled=self.check_line2.isChecked(),
+            x2=self.spin_x2.value(),
+
+            linewidth=self.spin_ref_width.value(),
+            linestyle=self.combo_ref_style.currentText(),
+            color="grey"
+        )
+
         axes_config = AxesConfig(
             x_min=self.spin_xmin.value() if self.check_xlim.isChecked() else None,
             x_max=self.spin_xmax.value() if self.check_xlim.isChecked() else None,
@@ -475,6 +535,8 @@ class ConfigPanel(QWidget):
 
             x_major_interval=self.spin_x_major.value() if self.check_ticks.isChecked() else None,
             y_major_interval=self.spin_y_major.value() if self.check_ticks.isChecked() else None,
+
+            ref_lines=ref_config
         )
 
         # 5. Legend
