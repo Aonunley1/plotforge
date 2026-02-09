@@ -1,16 +1,34 @@
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QFormLayout, QComboBox,
-    QCheckBox, QSpinBox, QDoubleSpinBox, QPushButton,
-    QGroupBox, QLineEdit, QHBoxLayout, QLabel, QToolButton,
-    QFrame, QScrollArea
+    QWidget,
+    QVBoxLayout,
+    QFormLayout,
+    QComboBox,
+    QCheckBox,
+    QSpinBox,
+    QDoubleSpinBox,
+    QPushButton,
+    QGroupBox,
+    QLineEdit,
+    QHBoxLayout,
+    QLabel,
+    QToolButton,
+    QFrame,
+    QScrollArea,
 )
 from PyQt5.QtCore import pyqtSignal, Qt, QSize
 
 from plotforge.config import (
-    ScatterPlotConfig, TrendlineConfig, SaveConfig,
-    StatisticalOverlayConfig, AxesConfig, LegendConfig,
-    KDEConfig, CIConfig, ReferenceLinesConfig,
-    DEFAULT_PALETTE, DEFAULT_MARKERS
+    ScatterPlotConfig,
+    TrendlineConfig,
+    SaveConfig,
+    StatisticalOverlayConfig,
+    AxesConfig,
+    LegendConfig,
+    KDEConfig,
+    CIConfig,
+    ReferenceLinesConfig,
+    DEFAULT_PALETTE,
+    DEFAULT_MARKERS,
 )
 
 
@@ -20,14 +38,18 @@ class CollapsibleBox(QWidget):
         super().__init__(parent)
 
         self.toggle_button = QToolButton(text=title, checkable=True, checked=expanded)
-        self.toggle_button.setStyleSheet("QToolButton { border: none; font-weight: bold; }")
+        self.toggle_button.setStyleSheet(
+            "QToolButton { border: none; font-weight: bold; }"
+        )
         self.toggle_button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.toggle_button.setArrowType(Qt.DownArrow if expanded else Qt.RightArrow)
         self.toggle_button.toggled.connect(self.on_toggled)
 
         self.content_area = QWidget()
         self.content_area.setVisible(expanded)
-        self.content_area.setStyleSheet(".QWidget { border: 1px solid #dcdcdc; border-radius: 3px; }")
+        self.content_area.setStyleSheet(
+            ".QWidget { border: 1px solid #dcdcdc; border-radius: 3px; }"
+        )
 
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setSpacing(0)
@@ -46,8 +68,10 @@ class CollapsibleBox(QWidget):
 
 # ------------------------
 
+
 class ConfigPanel(QWidget):
     update_signal = pyqtSignal()
+    sheet_selected = pyqtSignal(str)  # New signal for sheet changes
 
     def __init__(self):
         super().__init__()
@@ -58,6 +82,23 @@ class ConfigPanel(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
+
+        # --- SHEET SELECTOR (New Feature) ---
+        self.sheet_wrapper = QWidget()
+        sheet_layout = QHBoxLayout(self.sheet_wrapper)
+        sheet_layout.setContentsMargins(10, 10, 10, 5)
+
+        self.lbl_sheet = QLabel("<b>Source Sheet:</b>")
+        self.combo_sheet = QComboBox()
+        self.combo_sheet.currentTextChanged.connect(self._on_sheet_change)
+
+        sheet_layout.addWidget(self.lbl_sheet)
+        sheet_layout.addWidget(self.combo_sheet, stretch=1)
+
+        # Hidden by default, only shown for multi-sheet Excel files
+        self.sheet_wrapper.setVisible(False)
+        main_layout.addWidget(self.sheet_wrapper)
+        # ------------------------------------
 
         # 2. Setup Scroll Area
         self.scroll_area = QScrollArea()
@@ -108,11 +149,15 @@ class ConfigPanel(QWidget):
         self.spin_linewidth.setRange(0.0, 10.0)
 
         self.combo_edgecolor = QComboBox()
-        self.combo_edgecolor.addItems(["black", "white", "none", "gray", "red", "blue"])
+        self.combo_edgecolor.addItems(
+            ["black", "white", "none", "gray", "red", "blue"]
+        )
 
         self.combo_palette = QComboBox()
         self.combo_palette.addItem("Custom (Blue/Red/Green/Orange)", "custom")
-        self.combo_palette.addItems(["deep", "muted", "bright", "pastel", "dark", "colorblind"])
+        self.combo_palette.addItems(
+            ["deep", "muted", "bright", "pastel", "dark", "colorblind"]
+        )
 
         self.combo_markers = QComboBox()
         self.combo_markers.addItem("Custom (o, X, ^, s)", "custom")
@@ -128,7 +173,9 @@ class ConfigPanel(QWidget):
         self.scroll_layout.addWidget(scatter_group)
 
         # C. Visual Tweaks
-        visual_group = CollapsibleBox("Visual Tweaks (Axes, Ticks, Legend)", expanded=False)
+        visual_group = CollapsibleBox(
+            "Visual Tweaks (Axes, Ticks, Legend)", expanded=False
+        )
         visual_layout = QFormLayout()
 
         self.line_xlabel = QLineEdit()
@@ -350,9 +397,18 @@ class ConfigPanel(QWidget):
         self.check_kde_fill.setEnabled(False)
 
         self.combo_kde_cmap = QComboBox()
-        self.combo_kde_cmap.addItems([
-            "mako", "rocket", "flare", "crest", "magma", "viridis", "icefire", "inferno"
-        ])
+        self.combo_kde_cmap.addItems(
+            [
+                "mako",
+                "rocket",
+                "flare",
+                "crest",
+                "magma",
+                "viridis",
+                "icefire",
+                "inferno",
+            ]
+        )
         self.combo_kde_cmap.setEnabled(False)
 
         self.spin_kde_alpha = QDoubleSpinBox()
@@ -461,6 +517,26 @@ class ConfigPanel(QWidget):
         self.spin_kde_alpha.setEnabled(checked)
         self.spin_kde_width.setEnabled(checked)
 
+    # --- Sheet Selection Handlers ---
+    def _on_sheet_change(self, text):
+        if text:
+            self.sheet_selected.emit(text)
+
+    def update_sheet_selector(self, sheets: list):
+        """
+        Populate the sheet dropdown. If multiple sheets exist, show the selector.
+        """
+        self.combo_sheet.blockSignals(True)
+        self.combo_sheet.clear()
+
+        if not sheets or len(sheets) <= 1:
+            self.sheet_wrapper.setVisible(False)
+        else:
+            self.combo_sheet.addItems(sheets)
+            self.sheet_wrapper.setVisible(True)
+
+        self.combo_sheet.blockSignals(False)
+
     # --- Loading Columns (Unchanged) ---
     def load_columns(self, columns: list):
         self.combo_x.blockSignals(True)
@@ -483,7 +559,7 @@ class ConfigPanel(QWidget):
         self.combo_style.blockSignals(False)
 
     # --- Build Config ---
-    def build_config(self) -> 'ScatterPlotConfig':
+    def build_config(self) -> "ScatterPlotConfig":
         # 1. Trendline
         fit_range = None
         if self.check_limit_range.isChecked():
@@ -495,14 +571,14 @@ class ConfigPanel(QWidget):
             alpha=self.spin_trend_alpha.value(),
             linewidth=self.spin_trend_width.value(),
             linestyle=self.combo_trend_style.currentText(),
-            fit_range=fit_range
+            fit_range=fit_range,
         )
 
         # 2. CI Config
         ci_config = CIConfig(
             enabled=self.check_ci.isChecked(),
             level=self.spin_ci_level.value(),
-            alpha=self.spin_ci_alpha.value()
+            alpha=self.spin_ci_alpha.value(),
         )
 
         # 3. KDE
@@ -511,7 +587,7 @@ class ConfigPanel(QWidget):
             fill=self.check_kde_fill.isChecked(),
             cmap=self.combo_kde_cmap.currentText(),
             alpha=self.spin_kde_alpha.value(),
-            linewidth=self.spin_kde_width.value()
+            linewidth=self.spin_kde_width.value(),
         )
 
         # 4. Axes Visuals
@@ -521,10 +597,9 @@ class ConfigPanel(QWidget):
             x1=self.spin_x1.value(),
             line2_enabled=self.check_line2.isChecked(),
             x2=self.spin_x2.value(),
-
             linewidth=self.spin_ref_width.value(),
             linestyle=self.combo_ref_style.currentText(),
-            color="grey"
+            color="grey",
         )
 
         axes_config = AxesConfig(
@@ -532,11 +607,13 @@ class ConfigPanel(QWidget):
             x_max=self.spin_xmax.value() if self.check_xlim.isChecked() else None,
             y_min=self.spin_ymin.value() if self.check_ylim.isChecked() else None,
             y_max=self.spin_ymax.value() if self.check_ylim.isChecked() else None,
-
-            x_major_interval=self.spin_x_major.value() if self.check_ticks.isChecked() else None,
-            y_major_interval=self.spin_y_major.value() if self.check_ticks.isChecked() else None,
-
-            ref_lines=ref_config
+            x_major_interval=(
+                self.spin_x_major.value() if self.check_ticks.isChecked() else None
+            ),
+            y_major_interval=(
+                self.spin_y_major.value() if self.check_ticks.isChecked() else None
+            ),
+            ref_lines=ref_config,
         )
 
         # 5. Legend
@@ -552,24 +629,36 @@ class ConfigPanel(QWidget):
             enabled=True,
             title=self.line_legend_title.text() or None,
             bbox_to_anchor=bbox,
-            ncol=final_ncol
+            ncol=final_ncol,
         )
 
         # 6. Save
         save_config = SaveConfig(
             dpi=self.spin_dpi.value(),
-            figure_size=(self.spin_width.value(), self.spin_height.value())
+            figure_size=(self.spin_width.value(), self.spin_height.value()),
         )
 
         # 7. Data/Style
         pal_data = self.combo_palette.currentData()
-        final_palette = DEFAULT_PALETTE if pal_data == "custom" else self.combo_palette.currentText()
+        final_palette = (
+            DEFAULT_PALETTE
+            if pal_data == "custom"
+            else self.combo_palette.currentText()
+        )
 
         marker_data = self.combo_markers.currentData()
         final_markers = DEFAULT_MARKERS if marker_data == "custom" else True
 
-        group_col = self.combo_group.currentText() if self.combo_group.currentIndex() != 0 else None
-        style_col = self.combo_style.currentText() if self.combo_style.currentIndex() != 0 else None
+        group_col = (
+            self.combo_group.currentText()
+            if self.combo_group.currentIndex() != 0
+            else None
+        )
+        style_col = (
+            self.combo_style.currentText()
+            if self.combo_style.currentIndex() != 0
+            else None
+        )
 
         config = ScatterPlotConfig(
             x=self.combo_x.currentText(),
@@ -578,21 +667,17 @@ class ConfigPanel(QWidget):
             style_by=style_col,
             x_label=self.line_xlabel.text() or None,
             y_label=self.line_ylabel.text() or None,
-
             marker_size=self.spin_size.value(),
             alpha=self.spin_alpha.value(),
             linewidth=self.spin_linewidth.value(),
             edgecolor=self.combo_edgecolor.currentText(),
             palette=final_palette,
             markers=final_markers,
-
             overlays=StatisticalOverlayConfig(
-                trendline=trendline_config,
-                kde=kde_config,
-                ci=ci_config
+                trendline=trendline_config, kde=kde_config, ci=ci_config
             ),
             axes=axes_config,
             legend=legend_config,
-            save=save_config
+            save=save_config,
         )
         return config

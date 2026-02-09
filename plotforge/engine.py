@@ -39,7 +39,7 @@ class BasePlotEngine(PlotEngine):
         else:
             ax.set_title(None)
 
-            # 5. Overlays, Axes, Legend
+        # 5. Overlays, Axes, Legend
         artifacts = self.apply_overlays(ax, df, config)
         self.apply_axes_config(ax, config.axes)
         self.apply_legend(ax, config.legend)
@@ -172,10 +172,7 @@ class ScatterPlotEngine(BasePlotEngine):
         return dict(zip(unique_groups, palette_colors))
 
     def draw_core(self, ax, df: pd.DataFrame, config: 'ScatterPlotConfig') -> None:
-        # --- FIX: Do NOT default style_by to group_by ---
         style_col = config.style_by
-        # ------------------------------------------------
-
         color_map = self._generate_color_map(df, config)
 
         plot_kwargs = {
@@ -223,6 +220,7 @@ class ScatterPlotEngine(BasePlotEngine):
         kde_conf = config.overlays.kde
         color_map = self._generate_color_map(df, config)  # Get the Truth Map
 
+        # Arguments valid for BOTH Line and Fill
         kde_kwargs = {
             "data": df,
             "x": config.x,
@@ -231,15 +229,25 @@ class ScatterPlotEngine(BasePlotEngine):
             "ax": ax,
             "zorder": 0,
             "warn_singular": False,
-            "linewidth": kde_conf.linewidth,
-            "alpha": kde_conf.alpha
+            "alpha": kde_conf.alpha,
         }
 
+        # FIX 1: Pass PLURAL 'linewidths' if NOT filling
+        # This fixes the "UserWarning: kwargs not used by contour"
+        if not kde_conf.fill:
+            kde_kwargs["linewidths"] = kde_conf.linewidth
+
+        # FIX 2: Strict Exclusion (Hue vs Cmap)
         if config.group_by:
+            # GROUPING ACTIVE: Must use hue/palette. Cmap is FORBIDDEN.
             kde_kwargs["hue"] = config.group_by
             kde_kwargs["palette"] = color_map
         else:
-            kde_kwargs["color"] = color_map["_SINGLE_"]
+            # GROUPING INACTIVE: Can use Cmap OR Color.
+            if kde_conf.cmap and kde_conf.cmap.lower() != "none":
+                kde_kwargs["cmap"] = kde_conf.cmap
+            else:
+                kde_kwargs["color"] = color_map["_SINGLE_"]
 
         try:
             sns.kdeplot(**kde_kwargs)
@@ -274,15 +282,12 @@ class ScatterPlotEngine(BasePlotEngine):
 
             if len(x_subset) < 2: continue
 
-            # Design matrix: increasing=True => [1, x, x^2, ...]
-            # Index 0 is Intercept (x^0), Index 1 is Slope (x^1)
             X_des = np.vander(x_subset, trend_config.order + 1, increasing=True)
             model = sm.OLS(y_subset, X_des).fit()
 
             x_fit_grid = np.linspace(x_subset.min(), x_subset.max(), 100)
             X_fit_des = np.vander(x_fit_grid, trend_config.order + 1, increasing=True)
 
-            # Predict Trendline
             y_fit_grid = model.predict(X_fit_des)
 
             if config.group_by:
@@ -290,12 +295,10 @@ class ScatterPlotEngine(BasePlotEngine):
             else:
                 line_color = color_map.get("_SINGLE_", "black")
 
-            # Calculate CI Alpha (default to 0.05 if config unavailable)
             conf_alpha = 0.05
             if ci_config and ci_config.enabled:
                 conf_alpha = 1.0 - ci_config.level
 
-            # Draw CI
             if ci_config and ci_config.enabled:
                 predictions = model.get_prediction(X_fit_des)
                 pred_frame = predictions.summary_frame(alpha=conf_alpha)
@@ -309,7 +312,6 @@ class ScatterPlotEngine(BasePlotEngine):
                     zorder=1
                 )
 
-            # Draw Line
             ax.plot(
                 x_fit_grid,
                 y_fit_grid,
@@ -320,11 +322,8 @@ class ScatterPlotEngine(BasePlotEngine):
                 zorder=2
             )
 
-            # --- Artifact Stats ---
-            # Get Intervals for Parameters (Slope/Intercept)
-            # model.conf_int returns 2D array: [[intercept_low, intercept_high], [slope_low, slope_high], ...]
             param_ci = model.conf_int(alpha=conf_alpha)
-            bse = model.bse  # Standard Errors
+            bse = model.bse
 
             row_data = {
                 "group": str(name),
@@ -335,9 +334,7 @@ class ScatterPlotEngine(BasePlotEngine):
                 "coefficients": model.params.tolist(),
             }
 
-            # Map specific Linear Regression (Order 1) stats for the Table
             if trend_config.order >= 1:
-                # Index 0 = Intercept, Index 1 = Slope
                 row_data["intercept"] = model.params[0]
                 row_data["intercept_std_err"] = bse[0]
                 row_data["intercept_lower"] = param_ci[0][0]

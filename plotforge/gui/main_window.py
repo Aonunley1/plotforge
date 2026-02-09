@@ -1,7 +1,14 @@
 import pandas as pd
 from PyQt5.QtWidgets import (
-    QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
-    QAction, QFileDialog, QMessageBox, QSplitter, QLabel
+    QMainWindow,
+    QWidget,
+    QHBoxLayout,
+    QVBoxLayout,
+    QAction,
+    QFileDialog,
+    QMessageBox,
+    QSplitter,
+    QLabel,
 )
 from PyQt5.QtCore import Qt
 import matplotlib.figure
@@ -22,8 +29,11 @@ class MainWindow(QMainWindow):
         super().__init__()
 
         self.df: pd.DataFrame | None = None
-        self.current_config: 'BasePlotConfig' | None = None
-        self.current_result: 'PlotResult' | None = None
+        self.current_config: "BasePlotConfig" | None = None
+        self.current_result: "PlotResult" | None = None
+
+        # New State for Excel Reloading
+        self.active_file_path: str | None = None
 
         self.controller = PlotController()
 
@@ -42,7 +52,7 @@ class MainWindow(QMainWindow):
 
         load_action = QAction("&Load Data...", self)
         load_action.setShortcut("Ctrl+O")
-        load_action.triggered.connect(self.load_data)
+        load_action.triggered.connect(self.load_data_dialog)
         file_menu.addAction(load_action)
 
         export_action = QAction("&Export Artifacts...", self)
@@ -62,6 +72,12 @@ class MainWindow(QMainWindow):
 
         self.config_panel = ConfigPanel()
         self.config_panel.update_signal.connect(self.handle_update_plot)
+
+        # NEW: Connect the sheet selector signal
+        # Note: This requires ConfigPanel to have a 'sheet_selected' signal.
+        if hasattr(self.config_panel, 'sheet_selected'):
+            self.config_panel.sheet_selected.connect(self.reload_excel_sheet)
+
         splitter.addWidget(self.config_panel)
 
         right_panel = QWidget()
@@ -77,26 +93,78 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(splitter)
         splitter.setSizes([450, 1000])
 
-    def load_data(self):
+    def load_data_dialog(self):
+        """
+        Opens file dialog and handles format selection logic.
+        """
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Open Dataset", "", "CSV Files (*.csv);;Excel Files (*.xlsx)"
+            self,
+            "Open Dataset",
+            "",
+            "CSV Files (*.csv);;Excel Files (*.xlsx *.xls)",
         )
 
-        if not file_path: return
+        if not file_path:
+            return
 
         try:
-            if file_path.endswith('.csv'):
-                self.df = pd.read_csv(file_path)
-            else:
-                self.df = pd.read_excel(file_path)
+            self.active_file_path = file_path
+            self.df = None
+            sheet_names = []
 
-            self.status_label.setText(f"Loaded {len(self.df)} rows from {file_path}")
+            if file_path.endswith(".csv"):
+                self.df = pd.read_csv(file_path)
+                # Clear sheet selector for CSVs
+                if hasattr(self.config_panel, "update_sheet_selector"):
+                    self.config_panel.update_sheet_selector([])
+            else:
+                # Excel Logic: Peek before load
+                xls = pd.ExcelFile(file_path)
+                sheet_names = xls.sheet_names
+
+                # Push sheet names to ConfigPanel (Logic moved to Sidebar)
+                if hasattr(self.config_panel, "update_sheet_selector"):
+                    self.config_panel.update_sheet_selector(sheet_names)
+
+                # Default to first sheet
+                self.df = pd.read_excel(file_path, sheet_name=0)
+
+            # Success Path
+            if self.df is not None:
+                self.status_label.setText(f"Loaded {len(self.df)} rows from {file_path}")
+                columns = [str(c) for c in self.df.columns]
+                self.config_panel.load_columns(columns)
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error Loading Data", str(e))
+            self.status_label.setText("Error loading data")
+            self.active_file_path = None
+
+    def reload_excel_sheet(self, sheet_name: str):
+        """
+        Slot called when the user changes the dropdown in ConfigPanel.
+        """
+        if not self.active_file_path:
+            return
+
+        try:
+            self.setCursor(Qt.WaitCursor)
+            self.status_label.setText(f"Switching to sheet: {sheet_name}...")
+
+            self.df = pd.read_excel(self.active_file_path, sheet_name=sheet_name)
 
             columns = [str(c) for c in self.df.columns]
             self.config_panel.load_columns(columns)
 
+            self.status_label.setText(f"Loaded sheet '{sheet_name}' ({len(self.df)} rows)")
+
+            # Auto-trigger update? Optional.
+            # self.handle_update_plot()
+
         except Exception as e:
-            QMessageBox.critical(self, "Error Loading Data", str(e))
+            QMessageBox.critical(self, "Error Switching Sheet", str(e))
+        finally:
+            self.unsetCursor()
 
     def handle_update_plot(self):
         if self.df is None:
@@ -115,24 +183,17 @@ class MainWindow(QMainWindow):
             # 1. Update the Plot Canvas
             self.plot_canvas.set_figure(self.current_result.figure)
 
-            # 2. Resize Window if necessary
-            # We calculate the exact pixel size the figure wants to be
+            # 2. Resize Window logic
             fig = self.current_result.figure
             wanted_width = fig.get_figwidth() * fig.get_dpi()
             wanted_height = fig.get_figheight() * fig.get_dpi()
-
-            # Get current size of the canvas widget
             current_width = self.plot_canvas.width()
             current_height = self.plot_canvas.height()
 
-            # Calculate how much we need to grow
-            # (We only grow, we don't shrink, to avoid jarring jumps)
             delta_w = max(0, int(wanted_width - current_width))
             delta_h = max(0, int(wanted_height - current_height))
 
-            # If the plot is bigger than the available space, expand the MainWindow
             if delta_w > 0 or delta_h > 0:
-                # Add a small buffer for borders (e.g., 25px)
                 new_win_w = self.width() + delta_w + 25
                 new_win_h = self.height() + delta_h + 25
                 self.resize(new_win_w, new_win_h)
@@ -154,13 +215,17 @@ class MainWindow(QMainWindow):
 
     def export_artifacts(self):
         if not self.current_result or not self.current_result.artifacts:
-            QMessageBox.information(self, "No Artifacts", "No analysis data available to export.")
+            QMessageBox.information(
+                self, "No Artifacts", "No analysis data available to export."
+            )
             return
 
         df_to_save = self.current_result.artifacts.get("trendlines")
 
         if df_to_save is None:
-            QMessageBox.information(self, "No Data", "No trendline data found in current plot.")
+            QMessageBox.information(
+                self, "No Data", "No trendline data found in current plot."
+            )
             return
 
         file_path, _ = QFileDialog.getSaveFileName(
@@ -179,7 +244,10 @@ class MainWindow(QMainWindow):
             return
 
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Save Figure", "plot.png", "PNG Image (*.png);;PDF (*.pdf);;SVG (*.svg)"
+            self,
+            "Save Figure",
+            "plot.png",
+            "PNG Image (*.png);;PDF (*.pdf);;SVG (*.svg)",
         )
 
         if file_path:
