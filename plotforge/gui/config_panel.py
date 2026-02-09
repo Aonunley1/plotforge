@@ -9,7 +9,7 @@ from PyQt5.QtCore import pyqtSignal, Qt, QSize
 from plotforge.config import (
     ScatterPlotConfig, TrendlineConfig, SaveConfig,
     StatisticalOverlayConfig, AxesConfig, LegendConfig,
-    KDEConfig, DEFAULT_PALETTE, DEFAULT_MARKERS
+    KDEConfig, CIConfig, DEFAULT_PALETTE, DEFAULT_MARKERS
 )
 
 
@@ -261,6 +261,30 @@ class ConfigPanel(QWidget):
         range_layout.addWidget(QLabel("Max:"))
         range_layout.addWidget(self.spin_fit_max)
 
+        # -- Confidence Interval (Nested under Trendline) --
+        ci_layout = QHBoxLayout()
+        self.check_ci = QCheckBox("Show CI")
+        self.check_ci.setEnabled(False)
+        self.check_ci.toggled.connect(self._toggle_ci_options)
+
+        self.spin_ci_level = QDoubleSpinBox()
+        self.spin_ci_level.setRange(0.50, 0.999)
+        self.spin_ci_level.setValue(0.95)
+        self.spin_ci_level.setSingleStep(0.01)
+        self.spin_ci_level.setEnabled(False)
+
+        self.spin_ci_alpha = QDoubleSpinBox()
+        self.spin_ci_alpha.setRange(0.0, 1.0)
+        self.spin_ci_alpha.setValue(0.2)
+        self.spin_ci_alpha.setSingleStep(0.1)
+        self.spin_ci_alpha.setEnabled(False)
+
+        ci_layout.addWidget(self.check_ci)
+        ci_layout.addWidget(QLabel("Lvl:"))
+        ci_layout.addWidget(self.spin_ci_level)
+        ci_layout.addWidget(QLabel("Alpha:"))
+        ci_layout.addWidget(self.spin_ci_alpha)
+
         stats_layout.addRow(self.check_trendline)
         stats_layout.addRow("Order:", self.spin_order)
         stats_layout.addRow("Alpha:", self.spin_trend_alpha)
@@ -268,6 +292,8 @@ class ConfigPanel(QWidget):
         stats_layout.addRow("Style:", self.combo_trend_style)
         stats_layout.addRow(self.check_limit_range)
         stats_layout.addRow(range_layout)
+        stats_layout.addRow(QLabel("Confidence Interval:"))
+        stats_layout.addRow(ci_layout)
 
         # -- KDE --
         stats_layout.addRow(QLabel(""))
@@ -340,7 +366,7 @@ class ConfigPanel(QWidget):
 
         main_layout.addWidget(button_container)
 
-    # --- Toggle Handlers (Unchanged) ---
+    # --- Toggle Handlers ---
     def _toggle_limits(self, checked):
         self.spin_xmin.setEnabled(self.check_xlim.isChecked())
         self.spin_xmax.setEnabled(self.check_xlim.isChecked())
@@ -362,14 +388,24 @@ class ConfigPanel(QWidget):
         self.spin_trend_width.setEnabled(checked)
         self.combo_trend_style.setEnabled(checked)
         self.check_limit_range.setEnabled(checked)
-        if checked and self.check_limit_range.isChecked():
-            self._toggle_range_options(True)
+        self.check_ci.setEnabled(checked)
+
+        if checked:
+            if self.check_limit_range.isChecked():
+                self._toggle_range_options(True)
+            if self.check_ci.isChecked():
+                self._toggle_ci_options(True)
         else:
             self._toggle_range_options(False)
+            self._toggle_ci_options(False)
 
     def _toggle_range_options(self, checked):
         self.spin_fit_min.setEnabled(checked)
         self.spin_fit_max.setEnabled(checked)
+
+    def _toggle_ci_options(self, checked):
+        self.spin_ci_level.setEnabled(checked)
+        self.spin_ci_alpha.setEnabled(checked)
 
     def _toggle_kde_options(self, checked):
         self.check_kde_fill.setEnabled(checked)
@@ -398,7 +434,7 @@ class ConfigPanel(QWidget):
         self.combo_group.blockSignals(False)
         self.combo_style.blockSignals(False)
 
-    # --- Build Config (Unchanged) ---
+    # --- Build Config ---
     def build_config(self) -> 'ScatterPlotConfig':
         # 1. Trendline
         fit_range = None
@@ -414,7 +450,14 @@ class ConfigPanel(QWidget):
             fit_range=fit_range
         )
 
-        # 2. KDE
+        # 2. CI Config
+        ci_config = CIConfig(
+            enabled=self.check_ci.isChecked(),
+            level=self.spin_ci_level.value(),
+            alpha=self.spin_ci_alpha.value()
+        )
+
+        # 3. KDE
         kde_config = KDEConfig(
             enabled=self.check_kde.isChecked(),
             fill=self.check_kde_fill.isChecked(),
@@ -423,7 +466,7 @@ class ConfigPanel(QWidget):
             linewidth=self.spin_kde_width.value()
         )
 
-        # 3. Axes Visuals
+        # 4. Axes Visuals
         axes_config = AxesConfig(
             x_min=self.spin_xmin.value() if self.check_xlim.isChecked() else None,
             x_max=self.spin_xmax.value() if self.check_xlim.isChecked() else None,
@@ -434,7 +477,7 @@ class ConfigPanel(QWidget):
             y_major_interval=self.spin_y_major.value() if self.check_ticks.isChecked() else None,
         )
 
-        # 4. Legend
+        # 5. Legend
         bbox = None
         final_ncol = 1
 
@@ -450,13 +493,13 @@ class ConfigPanel(QWidget):
             ncol=final_ncol
         )
 
-        # 5. Save
+        # 6. Save
         save_config = SaveConfig(
             dpi=self.spin_dpi.value(),
             figure_size=(self.spin_width.value(), self.spin_height.value())
         )
 
-        # 6. Data/Style
+        # 7. Data/Style
         pal_data = self.combo_palette.currentData()
         final_palette = DEFAULT_PALETTE if pal_data == "custom" else self.combo_palette.currentText()
 
@@ -481,7 +524,11 @@ class ConfigPanel(QWidget):
             palette=final_palette,
             markers=final_markers,
 
-            overlays=StatisticalOverlayConfig(trendline=trendline_config, kde=kde_config),
+            overlays=StatisticalOverlayConfig(
+                trendline=trendline_config,
+                kde=kde_config,
+                ci=ci_config
+            ),
             axes=axes_config,
             legend=legend_config,
             save=save_config

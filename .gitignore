@@ -19,3 +19,7 @@ env/
 # --- IDE Settings (Optional but recommended) ---
 .vscode/
 .idea/
+
+# --- AI Context & Documentation (Local Only) ---
+ai_rules.txt
+structure.txt

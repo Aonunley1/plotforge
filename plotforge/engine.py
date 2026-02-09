@@ -187,7 +187,7 @@ class ScatterPlotEngine(BasePlotEngine):
     def apply_overlays(self, ax, df: pd.DataFrame, config: 'ScatterPlotConfig') -> Dict[str, Any]:
         artifacts = {}
 
-        # 1. Trendlines
+        # 1. Trendlines (Includes CI)
         if config.overlays.trendline and config.overlays.trendline.enabled:
             trendline_data = self._calculate_and_draw_trendlines(ax, df, config)
             artifacts["trendlines"] = pd.DataFrame(trendline_data)
@@ -228,6 +228,7 @@ class ScatterPlotEngine(BasePlotEngine):
     def _calculate_and_draw_trendlines(self, ax, df: pd.DataFrame, config: 'ScatterPlotConfig') -> List[Dict[str, Any]]:
         results = []
         trend_config = config.overlays.trendline
+        ci_config = config.overlays.ci
         color_map = self._generate_color_map(df, config)
 
         if config.group_by:
@@ -257,6 +258,8 @@ class ScatterPlotEngine(BasePlotEngine):
 
             x_fit_grid = np.linspace(x_subset.min(), x_subset.max(), 100)
             X_fit_des = np.vander(x_fit_grid, trend_config.order + 1, increasing=True)
+
+            # Predict Trendline
             y_fit_grid = model.predict(X_fit_des)
 
             if config.group_by:
@@ -264,13 +267,31 @@ class ScatterPlotEngine(BasePlotEngine):
             else:
                 line_color = color_map.get("_SINGLE_", "black")
 
+            # Draw CI
+            if ci_config and ci_config.enabled:
+                predictions = model.get_prediction(X_fit_des)
+                # summary_frame returns mean, mean_se, mean_ci_lower, mean_ci_upper, etc.
+                # alpha in summary_frame is (1 - confidence_level)
+                pred_frame = predictions.summary_frame(alpha=1 - ci_config.level)
+
+                ax.fill_between(
+                    x_fit_grid,
+                    pred_frame['mean_ci_lower'],
+                    pred_frame['mean_ci_upper'],
+                    color=line_color,
+                    alpha=ci_config.alpha,
+                    zorder=1
+                )
+
+            # Draw Line
             ax.plot(
                 x_fit_grid,
                 y_fit_grid,
                 color=line_color,
                 linewidth=trend_config.linewidth,
                 linestyle=trend_config.linestyle,
-                alpha=trend_config.alpha
+                alpha=trend_config.alpha,
+                zorder=2
             )
 
             results.append({

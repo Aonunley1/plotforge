@@ -84,7 +84,6 @@ class KDEConfig:
     fill: bool = True
     cmap: str = "mako"
     bw_adjust: float = 1.0
-    # --- NEW FIELDS ---
     alpha: float = 0.5
     linewidth: float = 1.5
 
@@ -93,6 +92,7 @@ class KDEConfig:
 class CIConfig:
     enabled: bool = False
     level: float = 0.95
+    alpha: float = 0.2
 
 
 @dataclass
