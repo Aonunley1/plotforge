@@ -253,6 +253,8 @@ class ScatterPlotEngine(BasePlotEngine):
 
             if len(x_subset) < 2: continue
 
+            # Design matrix: increasing=True => [1, x, x^2, ...]
+            # Index 0 is Intercept (x^0), Index 1 is Slope (x^1)
             X_des = np.vander(x_subset, trend_config.order + 1, increasing=True)
             model = sm.OLS(y_subset, X_des).fit()
 
@@ -267,12 +269,15 @@ class ScatterPlotEngine(BasePlotEngine):
             else:
                 line_color = color_map.get("_SINGLE_", "black")
 
+            # Calculate CI Alpha (default to 0.05 if config unavailable)
+            conf_alpha = 0.05
+            if ci_config and ci_config.enabled:
+                conf_alpha = 1.0 - ci_config.level
+
             # Draw CI
             if ci_config and ci_config.enabled:
                 predictions = model.get_prediction(X_fit_des)
-                # summary_frame returns mean, mean_se, mean_ci_lower, mean_ci_upper, etc.
-                # alpha in summary_frame is (1 - confidence_level)
-                pred_frame = predictions.summary_frame(alpha=1 - ci_config.level)
+                pred_frame = predictions.summary_frame(alpha=conf_alpha)
 
                 ax.fill_between(
                     x_fit_grid,
@@ -294,14 +299,34 @@ class ScatterPlotEngine(BasePlotEngine):
                 zorder=2
             )
 
-            results.append({
+            # --- Artifact Stats ---
+            # Get Intervals for Parameters (Slope/Intercept)
+            # model.conf_int returns 2D array: [[intercept_low, intercept_high], [slope_low, slope_high], ...]
+            param_ci = model.conf_int(alpha=conf_alpha)
+            bse = model.bse  # Standard Errors
+
+            row_data = {
                 "group": str(name),
                 "order": trend_config.order,
                 "n": len(x_subset),
                 "r2": model.rsquared,
                 "p_value": model.f_pvalue,
                 "coefficients": model.params.tolist(),
-                "x_fit": x_fit_grid.tolist(),
-                "y_fit": y_fit_grid.tolist()
-            })
+            }
+
+            # Map specific Linear Regression (Order 1) stats for the Table
+            if trend_config.order >= 1:
+                # Index 0 = Intercept, Index 1 = Slope
+                row_data["intercept"] = model.params[0]
+                row_data["intercept_std_err"] = bse[0]
+                row_data["intercept_lower"] = param_ci[0][0]
+                row_data["intercept_upper"] = param_ci[0][1]
+
+                row_data["slope"] = model.params[1]
+                row_data["slope_std_err"] = bse[1]
+                row_data["slope_lower"] = param_ci[1][0]
+                row_data["slope_upper"] = param_ci[1][1]
+
+            results.append(row_data)
+
         return results
