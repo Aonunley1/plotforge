@@ -51,7 +51,11 @@ class BasePlotEngine(PlotEngine):
         return PlotResult(figure=fig, artifacts=artifacts, warnings=warnings)
 
     def prepare_axes(self, config: 'BasePlotConfig') -> Tuple[matplotlib.figure.Figure, plt.Axes]:
-        fig, ax = plt.subplots(figsize=config.save.figure_size)
+        # FIX: Use OO-Interface (Figure) instead of Pyplot (subplots)
+        # This prevents the "More than 20 figures" memory warning because
+        # these figures are not registered with the global pyplot state machine.
+        fig = matplotlib.figure.Figure(figsize=config.save.figure_size)
+        ax = fig.add_subplot(111)
         return fig, ax
 
     def apply_style(self, config: 'BasePlotConfig') -> None:
