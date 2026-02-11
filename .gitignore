@@ -24,3 +24,7 @@ env/
 ai_rules.txt
 structure.txt
 prompt_summary.txt
+.agent/
+
+# --- Testing (Local Only) ---
+tests/

@@ -25,12 +25,16 @@ class MainWindow(QMainWindow):
     Ref: SPEC-2A Section 1
     """
 
+    # Constants for window resize calculations
+    WINDOW_RESIZE_PADDING_WIDTH = 25
+    WINDOW_RESIZE_PADDING_HEIGHT = 25
+
     def __init__(self):
         super().__init__()
 
         self.df: pd.DataFrame | None = None
-        self.current_config: "BasePlotConfig" | None = None
-        self.current_result: "PlotResult" | None = None
+        self.current_config: "BasePlotConfig | None" = None
+        self.current_result: "PlotResult | None" = None
 
         # New State for Excel Reloading
         self.active_file_path: str | None = None
@@ -194,8 +198,8 @@ class MainWindow(QMainWindow):
             delta_h = max(0, int(wanted_height - current_height))
 
             if delta_w > 0 or delta_h > 0:
-                new_win_w = self.width() + delta_w + 25
-                new_win_h = self.height() + delta_h + 25
+                new_win_w = self.width() + delta_w + self.WINDOW_RESIZE_PADDING_WIDTH
+                new_win_h = self.height() + delta_h + self.WINDOW_RESIZE_PADDING_HEIGHT
                 self.resize(new_win_w, new_win_h)
 
             # 3. Update Artifacts

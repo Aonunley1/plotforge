@@ -57,13 +57,13 @@ class PandasModel(QAbstractTableModel):
         super().__init__()
         self._data = data
 
-    def rowCount(self, parent=QModelIndex()):
+    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return self._data.shape[0]
 
-    def columnCount(self, parent=QModelIndex()):
+    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return self._data.shape[1]
 
-    def data(self, index, role=Qt.DisplayRole):
+    def data(self, index: QModelIndex, role: int = Qt.DisplayRole) -> QVariant:
         if not index.isValid():
             return None
 
@@ -88,7 +88,7 @@ class PandasModel(QAbstractTableModel):
 
         return None
 
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
+    def headerData(self, section: int, orientation: Qt.Orientation, role: int = Qt.DisplayRole) -> QVariant:
         col_name = str(self._data.columns[section])
 
         if orientation == Qt.Horizontal:

@@ -11,8 +11,6 @@ class PlotController(QObject):
     """
 
     def execute(self, df: pd.DataFrame, config: 'BasePlotConfig') -> 'PlotResult':
-        engine = None
-
         if isinstance(config, ScatterPlotConfig):
             engine = ScatterPlotEngine()
         else:

@@ -209,20 +209,22 @@ class ScatterPlotEngine(BasePlotEngine):
     def apply_overlays(self, ax, df: pd.DataFrame, config: 'ScatterPlotConfig') -> Dict[str, Any]:
         artifacts = {}
 
+        # Generate color map once and reuse (performance optimization)
+        color_map = self._generate_color_map(df, config)
+
         # 1. Trendlines (Includes CI)
         if config.overlays.trendline and config.overlays.trendline.enabled:
-            trendline_data = self._calculate_and_draw_trendlines(ax, df, config)
+            trendline_data = self._calculate_and_draw_trendlines(ax, df, config, color_map)
             artifacts["trendlines"] = pd.DataFrame(trendline_data)
 
         # 2. KDE
         if config.overlays.kde and config.overlays.kde.enabled:
-            self._draw_kde(ax, df, config)
+            self._draw_kde(ax, df, config, color_map)
 
         return artifacts
 
-    def _draw_kde(self, ax, df: pd.DataFrame, config: 'ScatterPlotConfig') -> None:
+    def _draw_kde(self, ax, df: pd.DataFrame, config: 'ScatterPlotConfig', color_map: Dict[Any, Any]) -> None:
         kde_conf = config.overlays.kde
-        color_map = self._generate_color_map(df, config)  # Get the Truth Map
 
         # Arguments valid for BOTH Line and Fill
         kde_kwargs = {
@@ -258,11 +260,10 @@ class ScatterPlotEngine(BasePlotEngine):
         except Exception as e:
             print(f"Warning: KDE Plot failed - {e}")
 
-    def _calculate_and_draw_trendlines(self, ax, df: pd.DataFrame, config: 'ScatterPlotConfig') -> List[Dict[str, Any]]:
+    def _calculate_and_draw_trendlines(self, ax, df: pd.DataFrame, config: 'ScatterPlotConfig', color_map: Dict[Any, Any]) -> List[Dict[str, Any]]:
         results = []
         trend_config = config.overlays.trendline
         ci_config = config.overlays.ci
-        color_map = self._generate_color_map(df, config)
 
         if config.group_by:
             groups = df.groupby(config.group_by)
@@ -286,13 +287,18 @@ class ScatterPlotEngine(BasePlotEngine):
 
             if len(x_subset) < 2: continue
 
-            X_des = np.vander(x_subset, trend_config.order + 1, increasing=True)
-            model = sm.OLS(y_subset, X_des).fit()
+            try:
+                X_des = np.vander(x_subset, trend_config.order + 1, increasing=True)
+                model = sm.OLS(y_subset, X_des).fit()
 
-            x_fit_grid = np.linspace(x_subset.min(), x_subset.max(), 100)
-            X_fit_des = np.vander(x_fit_grid, trend_config.order + 1, increasing=True)
+                x_fit_grid = np.linspace(x_subset.min(), x_subset.max(), 100)
+                X_fit_des = np.vander(x_fit_grid, trend_config.order + 1, increasing=True)
 
-            y_fit_grid = model.predict(X_fit_des)
+                y_fit_grid = model.predict(X_fit_des)
+            except (np.linalg.LinAlgError, ValueError) as e:
+                # Skip this group if fitting fails (singular matrix, numerical issues, etc.)
+                print(f"Warning: Trendline fitting failed for group '{name}': {e}")
+                continue
 
             if config.group_by:
                 line_color = color_map.get(name, "black")
