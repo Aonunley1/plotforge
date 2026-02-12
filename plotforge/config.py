@@ -129,6 +129,9 @@ class BasePlotConfig:
     group_by: Optional[str] = None
     style_by: Optional[str] = None
 
+    # Shared color palette for all plot types
+    palette: Union[List[str], str] = field(default_factory=lambda: DEFAULT_PALETTE.copy())
+
     style: StyleConfig = field(default_factory=StyleConfig)
     overlays: StatisticalOverlayConfig = field(default_factory=StatisticalOverlayConfig)
     legend: LegendConfig = field(default_factory=LegendConfig)
@@ -144,7 +147,7 @@ class ScatterPlotConfig(BasePlotConfig):
     alpha: float = 0.8
     linewidth: float = 1.0
     edgecolor: str = "black"
-    palette: Union[List[str], str] = field(default_factory=lambda: DEFAULT_PALETTE.copy())
+    # palette inherited from BasePlotConfig
     markers: Union[List[str], bool] = field(default_factory=lambda: DEFAULT_MARKERS.copy())
 
 

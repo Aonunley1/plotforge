@@ -72,6 +72,62 @@ class BasePlotEngine(PlotEngine):
     def apply_overlays(self, ax: plt.Axes, df: pd.DataFrame, config: 'BasePlotConfig') -> Dict[str, Any]:
         return {}
 
+    # --- SHARED HELPER METHODS (Available to all plot engines) ---
+
+    def _generate_color_map(self, df: pd.DataFrame, config: 'BasePlotConfig') -> Dict[Any, Any]:
+        """
+        Creates a SINGLE source of truth for color mapping.
+        
+        This method is shared by ALL plot types that support grouping.
+        It handles both single-color and multi-group scenarios.
+        
+        Returns:
+            Dict mapping group names to colors, or {"_SINGLE_": color} for ungrouped data
+        """
+        if not config.group_by:
+            # Single color for ungrouped data
+            if isinstance(config.palette, list) and len(config.palette) > 0:
+                color = config.palette[0]
+            else:
+                color = sns.color_palette(config.palette, n_colors=1)[0]
+            return {"_SINGLE_": color}
+
+        # Multiple groups - create color mapping
+        unique_groups = sorted(df[config.group_by].dropna().unique())
+        palette_colors = sns.color_palette(config.palette, n_colors=len(unique_groups))
+        return dict(zip(unique_groups, palette_colors))
+
+    def _validate_columns(self, df: pd.DataFrame, required_columns: List[str]) -> None:
+        """
+        Validate that required columns exist in DataFrame.
+        
+        Args:
+            df: DataFrame to validate
+            required_columns: List of column names that must exist
+            
+        Raises:
+            ValueError: If any required columns are missing
+        """
+        missing = [col for col in required_columns if col not in df.columns]
+        if missing:
+            raise ValueError(f"Missing required columns: {missing}")
+
+    def _get_palette_colors(self, config: 'BasePlotConfig', n_colors: int) -> List:
+        """
+        Get palette colors - handles both list and string palettes.
+        
+        Args:
+            config: Plot configuration with palette attribute
+            n_colors: Number of colors needed
+            
+        Returns:
+            List of colors
+        """
+        if isinstance(config.palette, list):
+            return config.palette[:n_colors]
+        else:
+            return sns.color_palette(config.palette, n_colors=n_colors)
+
     def apply_axes_config(self, ax: plt.Axes, config) -> None:
         # 1. Bounds / Limits
         if config.x_min is not None and config.x_max is not None:
@@ -162,18 +218,7 @@ class BasePlotEngine(PlotEngine):
 class ScatterPlotEngine(BasePlotEngine):
     """Ref: SPEC-1A Section 5"""
 
-    def _generate_color_map(self, df: pd.DataFrame, config: 'ScatterPlotConfig') -> Dict[Any, Any]:
-        """Creates a SINGLE source of truth for color mapping."""
-        if not config.group_by:
-            if isinstance(config.palette, list) and len(config.palette) > 0:
-                color = config.palette[0]
-            else:
-                color = sns.color_palette(config.palette, n_colors=1)[0]
-            return {"_SINGLE_": color}
-
-        unique_groups = sorted(df[config.group_by].dropna().unique())
-        palette_colors = sns.color_palette(config.palette, n_colors=len(unique_groups))
-        return dict(zip(unique_groups, palette_colors))
+    # _generate_color_map is now inherited from BasePlotEngine
 
     def draw_core(self, ax, df: pd.DataFrame, config: 'ScatterPlotConfig') -> None:
         style_col = config.style_by
