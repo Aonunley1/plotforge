@@ -8,7 +8,7 @@ import matplotlib.ticker as ticker
 import statsmodels.api as sm
 from typing import Tuple, List, Dict, Any
 
-from plotforge.config import BasePlotConfig, ScatterPlotConfig, PlotResult
+from plotforge.config import BasePlotConfig, ScatterPlotConfig, LinePlotConfig, PlotResult
 
 
 class PlotEngine(abc.ABC):
@@ -403,3 +403,75 @@ class ScatterPlotEngine(BasePlotEngine):
             results.append(row_data)
 
         return results
+
+
+class LinePlotEngine(BasePlotEngine):
+    """
+    Engine for creating line plots.
+    
+    Supports:
+    - Single or multiple lines (via group_by)
+    - Optional markers on data points
+    - Fill between line and x-axis
+    - Confidence intervals (via overlays)
+    """
+
+    def draw_core(self, ax, df: pd.DataFrame, config: 'LinePlotConfig') -> None:
+        """Draw the line plot"""
+        
+        # Validate required columns
+        self._validate_columns(df, [config.x, config.y])
+        
+        # Generate color mapping
+        color_map = self._generate_color_map(df, config)
+        
+        if config.group_by:
+            # Multiple lines (one per group)
+            for group_name, group_df in df.groupby(config.group_by):
+                self._draw_single_line(ax, group_df, config, color_map, group_name)
+        else:
+            # Single line
+            self._draw_single_line(ax, df, config, color_map)
+    
+    def _draw_single_line(self, ax, df, config, color_map, label=None):
+        """Helper to draw a single line"""
+        
+        # Get color
+        color = color_map.get(label, color_map.get("_SINGLE_", "blue"))
+        
+        # Sort by X for proper line drawing
+        df_sorted = df[[config.x, config.y]].dropna().sort_values(config.x)
+        
+        if df_sorted.empty:
+            return
+        
+        # Draw line
+        ax.plot(
+            df_sorted[config.x],
+            df_sorted[config.y],
+            color=color,
+            linewidth=config.linewidth,
+            linestyle=config.linestyle,
+            marker=config.marker_style if config.show_markers else None,
+            markersize=config.marker_size if config.show_markers else 0,
+            alpha=config.alpha,
+            label=label
+        )
+        
+        # Optional fill
+        if config.fill_between:
+            ax.fill_between(
+                df_sorted[config.x],
+                df_sorted[config.y],
+                alpha=config.fill_alpha,
+                color=color
+            )
+    
+    def apply_overlays(self, ax, df, config):
+        """Apply line-specific overlays"""
+        artifacts = {}
+        
+        # Confidence intervals could be added here in the future
+        # For now, line plots don't have specific overlays beyond fill_between
+        
+        return artifacts

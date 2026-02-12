@@ -152,6 +152,31 @@ class ScatterPlotConfig(BasePlotConfig):
 
 
 @dataclass
+class LinePlotConfig(BasePlotConfig):
+    """Configuration for line plots"""
+    x: str = ""
+    y: str = ""
+    
+    # Line styling
+    linewidth: float = 2.5
+    linestyle: str = "-"  # Options: "-", "--", "-.", ":"
+    
+    # Markers
+    show_markers: bool = True
+    marker_size: float = 8.0
+    marker_style: str = "o"  # Options: "o", "s", "^", "v", "D", "X"
+    
+    # Fill options
+    fill_between: bool = False
+    fill_alpha: float = 0.3
+    
+    # Alpha for line
+    alpha: float = 1.0
+    
+    # palette inherited from BasePlotConfig
+
+
+@dataclass
 class PlotResult:
     figure: Any
     artifacts: Dict[str, Any]

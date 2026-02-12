@@ -1,8 +1,8 @@
 from PyQt5.QtCore import QObject
 import pandas as pd
 
-from plotforge.config import BasePlotConfig, ScatterPlotConfig, PlotResult
-from plotforge.engine import ScatterPlotEngine
+from plotforge.config import BasePlotConfig, ScatterPlotConfig, LinePlotConfig, PlotResult
+from plotforge.engine import ScatterPlotEngine, LinePlotEngine
 
 
 class PlotController(QObject):
@@ -13,6 +13,8 @@ class PlotController(QObject):
     def execute(self, df: pd.DataFrame, config: 'BasePlotConfig') -> 'PlotResult':
         if isinstance(config, ScatterPlotConfig):
             engine = ScatterPlotEngine()
+        elif isinstance(config, LinePlotConfig):
+            engine = LinePlotEngine()
         else:
             raise ValueError(f"Unsupported configuration type: {type(config)}")
 
