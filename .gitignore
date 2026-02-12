@@ -26,5 +26,7 @@ structure.txt
 prompt_summary.txt
 .agent/
 
-# --- Testing (Local Only) ---
-tests/
+# --- Testing (Track scripts, ignore outputs and data) ---
+tests/output/
+tests/test_data/
+tests/__pycache__/
