@@ -136,11 +136,32 @@ class ErrorBarConfig:
 
 
 @dataclass
+class LineCIConfig:
+    """Configuration for confidence intervals around line plots"""
+    enabled: bool = False
+    
+    # Confidence level (e.g., 0.95 for 95% CI)
+    level: float = 0.95
+    
+    # Method: 'stderr' (standard error) or 'bootstrap'
+    method: str = 'stderr'
+    
+    # Bootstrap parameters (only used if method='bootstrap')
+    n_bootstrap: int = 1000
+    
+    # Styling
+    alpha: float = 0.2
+    color: Optional[str] = None  # None = use line color
+
+
+@dataclass
 class StatisticalOverlayConfig:
     trendline: Optional[TrendlineConfig] = None
     kde: Optional[KDEConfig] = None
-    ci: Optional[CIConfig] = None
-    error_bars: Optional[ErrorBarConfig] = None  # NEW: Error bars for all plot types
+    ci: Optional[CIConfig] = None  # For trendline CI
+    error_bars: Optional[ErrorBarConfig] = None
+    line_ci: Optional[LineCIConfig] = None  # NEW: For line plot CI
+
 
 
 

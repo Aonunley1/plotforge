@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.figure
 import matplotlib.ticker as ticker
 import statsmodels.api as sm
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Any, Optional
 
 from plotforge.config import BasePlotConfig, ScatterPlotConfig, LinePlotConfig, PlotResult
 
@@ -226,6 +226,150 @@ class BasePlotEngine(PlotEngine):
                 alpha=eb_config.alpha,
                 zorder=1
             )
+
+    def _add_line_ci(
+        self,
+        ax: plt.Axes,
+        df: pd.DataFrame,
+        config: 'BasePlotConfig',
+        color_map: Dict[Any, Any]
+    ) -> None:
+        """
+        Add confidence intervals (shaded bands) around line plots.
+        
+        Supports:
+        - Standard error method (assumes normal distribution)
+        - Bootstrap method (resampling)
+        - Grouped and ungrouped data
+        - Per-group coloring
+        
+        Args:
+            ax: Matplotlib axes
+            df: DataFrame with data
+            config: Plot configuration with overlays.line_ci
+            color_map: Color mapping for groups
+        """
+        if not config.overlays or not config.overlays.line_ci:
+            return
+        
+        ci_config = config.overlays.line_ci
+        if not ci_config.enabled:
+            return
+        
+        # Calculate confidence level multiplier (z-score for normal distribution)
+        from scipy import stats
+        z_score = stats.norm.ppf((1 + ci_config.level) / 2)
+        
+        if config.group_by:
+            # Grouped confidence intervals
+            for group_name in sorted(df[config.group_by].dropna().unique()):
+                group_df = df[df[config.group_by] == group_name].copy()
+                self._draw_single_ci_band(
+                    ax, group_df, config, ci_config, color_map, 
+                    group_name, z_score
+                )
+        else:
+            # Ungrouped confidence interval
+            self._draw_single_ci_band(
+                ax, df, config, ci_config, color_map, 
+                None, z_score
+            )
+    
+    def _draw_single_ci_band(
+        self,
+        ax: plt.Axes,
+        df: pd.DataFrame,
+        config: 'BasePlotConfig',
+        ci_config,
+        color_map: Dict[Any, Any],
+        group_name: Optional[Any],
+        z_score: float
+    ) -> None:
+        """Draw a single confidence interval band"""
+        
+        # Sort by X for proper fill_between
+        df_sorted = df.sort_values(config.x)
+        x_vals = df_sorted[config.x].values
+        y_vals = df_sorted[config.y].values
+        
+        if ci_config.method == 'stderr':
+            # Standard error method
+            # Group by X values and calculate mean and stderr
+            grouped = df_sorted.groupby(config.x)[config.y]
+            
+            x_unique = []
+            y_mean = []
+            y_stderr = []
+            
+            for x_val, y_group in grouped:
+                x_unique.append(x_val)
+                y_mean.append(y_group.mean())
+                # Standard error = std / sqrt(n)
+                stderr = y_group.std() / np.sqrt(len(y_group))
+                y_stderr.append(stderr)
+            
+            x_unique = np.array(x_unique)
+            y_mean = np.array(y_mean)
+            y_stderr = np.array(y_stderr)
+            
+            # Calculate confidence bounds
+            y_lower = y_mean - z_score * y_stderr
+            y_upper = y_mean + z_score * y_stderr
+            
+        elif ci_config.method == 'bootstrap':
+            # Bootstrap method
+            grouped = df_sorted.groupby(config.x)[config.y]
+            
+            x_unique = []
+            y_lower = []
+            y_upper = []
+            
+            for x_val, y_group in grouped:
+                x_unique.append(x_val)
+                
+                # Bootstrap resampling
+                bootstrap_means = []
+                y_data = y_group.values
+                
+                for _ in range(ci_config.n_bootstrap):
+                    # Resample with replacement
+                    sample = np.random.choice(y_data, size=len(y_data), replace=True)
+                    bootstrap_means.append(np.mean(sample))
+                
+                # Calculate percentiles for CI
+                lower_percentile = (1 - ci_config.level) / 2 * 100
+                upper_percentile = (1 + ci_config.level) / 2 * 100
+                
+                y_lower.append(np.percentile(bootstrap_means, lower_percentile))
+                y_upper.append(np.percentile(bootstrap_means, upper_percentile))
+            
+            x_unique = np.array(x_unique)
+            y_lower = np.array(y_lower)
+            y_upper = np.array(y_upper)
+        
+        else:
+            # Unknown method
+            return
+        
+        # Get color for this band
+        if group_name is not None:
+            color = color_map.get(group_name, ci_config.color)
+        else:
+            color = color_map.get("_SINGLE_", ci_config.color)
+        
+        if ci_config.color is not None:
+            color = ci_config.color
+        
+        # Draw the confidence band
+        ax.fill_between(
+            x_unique,
+            y_lower,
+            y_upper,
+            alpha=ci_config.alpha,
+            color=color,
+            zorder=0,  # Draw behind lines
+            linewidth=0
+        )
 
 
     def apply_axes_config(self, ax: plt.Axes, config) -> None:
@@ -525,6 +669,9 @@ class LinePlotEngine(BasePlotEngine):
         # Generate color mapping
         color_map = self._generate_color_map(df, config)
         
+        # Add confidence intervals FIRST (so they appear behind lines)
+        self._add_line_ci(ax, df, config, color_map)
+        
         if config.group_by:
             # Multiple lines (one per group)
             for group_name, group_df in df.groupby(config.group_by):
@@ -533,7 +680,7 @@ class LinePlotEngine(BasePlotEngine):
             # Single line
             self._draw_single_line(ax, df, config, color_map)
         
-        # Add error bars if configured
+        # Add error bars if configured (after lines, so they appear on top)
         self._add_error_bars(ax, df, config, color_map)
     
     def _draw_single_line(self, ax, df, config, color_map, label=None):
