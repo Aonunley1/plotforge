@@ -372,6 +372,206 @@ class BasePlotEngine(PlotEngine):
         )
 
 
+    def _add_annotations(
+        self,
+        ax: plt.Axes,
+        df: pd.DataFrame,
+        config: 'BasePlotConfig',
+        color_map: Dict[Any, Any]
+    ) -> None:
+        """
+        Add annotations (text labels) to specific points on the plot.
+        
+        Supports:
+        - Manual annotations at specific (x, y) coordinates
+        - Automatic annotations (peaks, troughs, first/last points)
+        - Custom styling (font, color, arrows, boxes)
+        - Grouped and ungrouped data
+        
+        Args:
+            ax: Matplotlib axes
+            df: DataFrame with data
+            config: Plot configuration with overlays.annotations
+            color_map: Color mapping for groups
+        """
+        if not config.overlays or not config.overlays.annotations:
+            return
+        
+        ann_config = config.overlays.annotations
+        if not ann_config.enabled:
+            return
+        
+        # Manual annotations
+        for annotation in ann_config.annotations:
+            self._draw_single_annotation(ax, annotation)
+        
+        # Automatic annotations
+        if config.group_by:
+            # Annotate each group separately
+            for group_name in sorted(df[config.group_by].dropna().unique()):
+                group_df = df[df[config.group_by] == group_name]
+                self._add_auto_annotations(
+                    ax, group_df, config, ann_config, 
+                    group_name, color_map
+                )
+        else:
+            # Annotate ungrouped data
+            self._add_auto_annotations(
+                ax, df, config, ann_config, 
+                None, color_map
+            )
+    
+    def _draw_single_annotation(
+        self,
+        ax: plt.Axes,
+        annotation
+    ) -> None:
+        """Draw a single manual annotation"""
+        
+        if annotation.x is None or annotation.y is None:
+            return  # Skip if coordinates not specified
+        
+        # Build annotation kwargs
+        ann_kwargs = {
+            'xy': (annotation.x, annotation.y),
+            'xytext': annotation.xytext_offset,
+            'textcoords': 'offset points',
+            'fontsize': annotation.fontsize,
+            'color': annotation.color,
+            'ha': 'left',
+            'va': 'bottom'
+        }
+        
+        # Add arrow if enabled
+        if annotation.arrow:
+            arrow_color = annotation.arrow_color if annotation.arrow_color else annotation.color
+            ann_kwargs['arrowprops'] = {
+                'arrowstyle': annotation.arrow_style,
+                'color': arrow_color,
+                'lw': 1.5
+            }
+        
+        # Add bbox if enabled
+        if annotation.bbox:
+            ann_kwargs['bbox'] = {
+                'boxstyle': 'round,pad=0.5',
+                'facecolor': annotation.bbox_facecolor,
+                'edgecolor': annotation.bbox_edgecolor,
+                'alpha': annotation.bbox_alpha
+            }
+        
+        ax.annotate(annotation.text, **ann_kwargs)
+    
+    def _add_auto_annotations(
+        self,
+        ax: plt.Axes,
+        df: pd.DataFrame,
+        config: 'BasePlotConfig',
+        ann_config,
+        group_name: Optional[Any],
+        color_map: Dict[Any, Any]
+    ) -> None:
+        """Add automatic annotations (peaks, troughs, first/last)"""
+        
+        # Sort by X
+        df_sorted = df.sort_values(config.x)
+        x_vals = df_sorted[config.x].values
+        y_vals = df_sorted[config.y].values
+        
+        if len(x_vals) == 0:
+            return
+        
+        # Get color for this group
+        if group_name is not None:
+            color = color_map.get(group_name, ann_config.auto_color)
+        else:
+            color = color_map.get("_SINGLE_", ann_config.auto_color)
+        
+        # First point
+        if ann_config.annotate_first:
+            label = f"Start: ({x_vals[0]:.2f}, {y_vals[0]:.2f})"
+            if group_name:
+                label = f"{group_name} " + label
+            self._draw_auto_annotation(
+                ax, x_vals[0], y_vals[0], label, ann_config, color
+            )
+        
+        # Last point
+        if ann_config.annotate_last:
+            label = f"End: ({x_vals[-1]:.2f}, {y_vals[-1]:.2f})"
+            if group_name:
+                label = f"{group_name} " + label
+            self._draw_auto_annotation(
+                ax, x_vals[-1], y_vals[-1], label, ann_config, color
+            )
+        
+        # Peaks (local maxima)
+        if ann_config.annotate_peaks and len(y_vals) >= 3:
+            from scipy.signal import find_peaks
+            peaks, _ = find_peaks(y_vals)
+            for peak_idx in peaks:
+                label = f"Peak: {y_vals[peak_idx]:.2f}"
+                if group_name:
+                    label = f"{group_name} " + label
+                self._draw_auto_annotation(
+                    ax, x_vals[peak_idx], y_vals[peak_idx], 
+                    label, ann_config, color
+                )
+        
+        # Troughs (local minima)
+        if ann_config.annotate_troughs and len(y_vals) >= 3:
+            from scipy.signal import find_peaks
+            # Find peaks in inverted signal = troughs
+            troughs, _ = find_peaks(-y_vals)
+            for trough_idx in troughs:
+                label = f"Trough: {y_vals[trough_idx]:.2f}"
+                if group_name:
+                    label = f"{group_name} " + label
+                self._draw_auto_annotation(
+                    ax, x_vals[trough_idx], y_vals[trough_idx], 
+                    label, ann_config, color, offset=(10, -20)
+                )
+    
+    def _draw_auto_annotation(
+        self,
+        ax: plt.Axes,
+        x: float,
+        y: float,
+        text: str,
+        ann_config,
+        color: str,
+        offset: Tuple[float, float] = (10, 10)
+    ) -> None:
+        """Draw a single automatic annotation"""
+        
+        ann_kwargs = {
+            'xy': (x, y),
+            'xytext': offset,
+            'textcoords': 'offset points',
+            'fontsize': ann_config.auto_fontsize,
+            'color': color,
+            'ha': 'left',
+            'va': 'bottom'
+        }
+        
+        if ann_config.auto_arrow:
+            ann_kwargs['arrowprops'] = {
+                'arrowstyle': '->',
+                'color': color,
+                'lw': 1.5
+            }
+        
+        if ann_config.auto_bbox:
+            ann_kwargs['bbox'] = {
+                'boxstyle': 'round,pad=0.3',
+                'facecolor': 'white',
+                'edgecolor': color,
+                'alpha': 0.9
+            }
+        
+        ax.annotate(text, **ann_kwargs)
+
+
     def apply_axes_config(self, ax: plt.Axes, config) -> None:
         # 1. Bounds / Limits
         if config.x_min is not None and config.x_max is not None:
@@ -682,6 +882,9 @@ class LinePlotEngine(BasePlotEngine):
         
         # Add error bars if configured (after lines, so they appear on top)
         self._add_error_bars(ax, df, config, color_map)
+        
+        # Add annotations if configured (last, so they appear on top of everything)
+        self._add_annotations(ax, df, config, color_map)
     
     def _draw_single_line(self, ax, df, config, color_map, label=None):
         """Helper to draw a single line"""

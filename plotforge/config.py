@@ -155,12 +155,64 @@ class LineCIConfig:
 
 
 @dataclass
+class AnnotationConfig:
+    """Configuration for a single annotation"""
+    # Position
+    x: Optional[float] = None  # X coordinate
+    y: Optional[float] = None  # Y coordinate
+    
+    # Text
+    text: str = ""
+    
+    # Styling
+    fontsize: float = 10.0
+    color: str = "black"
+    
+    # Arrow (points from text to data point)
+    arrow: bool = True
+    arrow_style: str = "->"  # Options: "->", "-", "-[", "]-", etc.
+    arrow_color: Optional[str] = None  # None = use text color
+    
+    # Text box
+    bbox: bool = True
+    bbox_facecolor: str = "white"
+    bbox_edgecolor: str = "black"
+    bbox_alpha: float = 0.8
+    
+    # Offset from point (in points)
+    xytext_offset: Tuple[float, float] = (10, 10)
+
+
+@dataclass
+class AnnotationsConfig:
+    """Configuration for multiple annotations"""
+    enabled: bool = False
+    
+    # Manual annotations (list of AnnotationConfig)
+    annotations: List[AnnotationConfig] = field(default_factory=list)
+    
+    # Automatic annotation modes
+    annotate_peaks: bool = False  # Annotate local maxima
+    annotate_troughs: bool = False  # Annotate local minima
+    annotate_first: bool = False  # Annotate first point
+    annotate_last: bool = False  # Annotate last point
+    
+    # Auto-annotation styling (used for automatic annotations)
+    auto_fontsize: float = 9.0
+    auto_color: str = "darkred"
+    auto_arrow: bool = True
+    auto_bbox: bool = True
+
+
+@dataclass
 class StatisticalOverlayConfig:
     trendline: Optional[TrendlineConfig] = None
     kde: Optional[KDEConfig] = None
     ci: Optional[CIConfig] = None  # For trendline CI
     error_bars: Optional[ErrorBarConfig] = None
-    line_ci: Optional[LineCIConfig] = None  # NEW: For line plot CI
+    line_ci: Optional[LineCIConfig] = None  # For line plot CI
+    annotations: Optional[AnnotationsConfig] = None  # NEW: Annotations
+
 
 
 
