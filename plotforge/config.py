@@ -115,10 +115,33 @@ class CIConfig:
 
 
 @dataclass
+class ErrorBarConfig:
+    """Configuration for error bars (works for scatter and line plots)"""
+    enabled: bool = False
+    
+    # Error data column names (optional - can also use fixed values)
+    y_error_column: Optional[str] = None  # Column name for Y errors
+    x_error_column: Optional[str] = None  # Column name for X errors
+    
+    # Fixed error values (used if columns not specified)
+    y_error: Optional[float] = None  # Fixed Y error value
+    x_error: Optional[float] = None  # Fixed X error value
+    
+    # Styling
+    linewidth: float = 1.5
+    capsize: float = 3.0  # Cap size at the end of error bars
+    capthick: float = 1.5  # Cap thickness
+    alpha: float = 0.7
+    color: Optional[str] = None  # None = use line/marker color
+
+
+@dataclass
 class StatisticalOverlayConfig:
     trendline: Optional[TrendlineConfig] = None
     kde: Optional[KDEConfig] = None
     ci: Optional[CIConfig] = None
+    error_bars: Optional[ErrorBarConfig] = None  # NEW: Error bars for all plot types
+
 
 
 @dataclass

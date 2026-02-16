@@ -128,6 +128,106 @@ class BasePlotEngine(PlotEngine):
         else:
             return sns.color_palette(config.palette, n_colors=n_colors)
 
+    def _add_error_bars(
+        self, 
+        ax: plt.Axes, 
+        df: pd.DataFrame, 
+        config: 'BasePlotConfig',
+        color_map: Dict[Any, Any]
+    ) -> None:
+        """
+        Add error bars to plot (works for scatter and line plots).
+        
+        Supports:
+        - Y error bars (vertical)
+        - X error bars (horizontal)
+        - Error values from DataFrame columns or fixed values
+        - Per-group coloring
+        
+        Args:
+            ax: Matplotlib axes
+            df: DataFrame with data
+            config: Plot configuration with overlays.error_bars
+            color_map: Color mapping for groups
+        """
+        if not config.overlays or not config.overlays.error_bars:
+            return
+        
+        eb_config = config.overlays.error_bars
+        if not eb_config.enabled:
+            return
+        
+        # Determine error values
+        yerr = None
+        xerr = None
+        
+        if eb_config.y_error_column and eb_config.y_error_column in df.columns:
+            yerr = df[eb_config.y_error_column]
+        elif eb_config.y_error is not None:
+            yerr = eb_config.y_error
+        
+        if eb_config.x_error_column and eb_config.x_error_column in df.columns:
+            xerr = df[eb_config.x_error_column]
+        elif eb_config.x_error is not None:
+            xerr = eb_config.x_error
+        
+        # If no errors specified, return
+        if yerr is None and xerr is None:
+            return
+        
+        # Add error bars (grouped or ungrouped)
+        if config.group_by:
+            # Grouped error bars
+            for group_name in sorted(df[config.group_by].dropna().unique()):
+                group_df = df[df[config.group_by] == group_name]
+                
+                # Get error values for this group
+                # Handle both Series (from column) and scalar (fixed value)
+                if isinstance(yerr, pd.Series):
+                    group_yerr = yerr.loc[group_df.index]
+                else:
+                    group_yerr = yerr  # Fixed value
+                
+                if isinstance(xerr, pd.Series):
+                    group_xerr = xerr.loc[group_df.index]
+                else:
+                    group_xerr = xerr  # Fixed value
+                
+                # Get color for this group
+                color = color_map.get(group_name, eb_config.color)
+                
+                ax.errorbar(
+                    group_df[config.x],
+                    group_df[config.y],
+                    yerr=group_yerr,
+                    xerr=group_xerr,
+                    fmt='none',  # Don't draw markers (already drawn by plot)
+                    ecolor=color if eb_config.color is None else eb_config.color,
+                    elinewidth=eb_config.linewidth,
+                    capsize=eb_config.capsize,
+                    capthick=eb_config.capthick,
+                    alpha=eb_config.alpha,
+                    zorder=1  # Draw behind markers/lines
+                )
+        else:
+            # Ungrouped error bars
+            color = color_map.get("_SINGLE_", eb_config.color)
+            
+            ax.errorbar(
+                df[config.x],
+                df[config.y],
+                yerr=yerr,
+                xerr=xerr,
+                fmt='none',
+                ecolor=color if eb_config.color is None else eb_config.color,
+                elinewidth=eb_config.linewidth,
+                capsize=eb_config.capsize,
+                capthick=eb_config.capthick,
+                alpha=eb_config.alpha,
+                zorder=1
+            )
+
+
     def apply_axes_config(self, ax: plt.Axes, config) -> None:
         # 1. Bounds / Limits
         if config.x_min is not None and config.x_max is not None:
@@ -432,6 +532,9 @@ class LinePlotEngine(BasePlotEngine):
         else:
             # Single line
             self._draw_single_line(ax, df, config, color_map)
+        
+        # Add error bars if configured
+        self._add_error_bars(ax, df, config, color_map)
     
     def _draw_single_line(self, ax, df, config, color_map, label=None):
         """Helper to draw a single line"""
