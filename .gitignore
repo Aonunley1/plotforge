@@ -25,8 +25,8 @@ ai_rules.txt
 structure.txt
 prompt_summary.txt
 .agent/
+.context/
 
-# --- Testing (Track scripts, ignore outputs and data) ---
-tests/output/
-tests/test_data/
-tests/__pycache__/
+# --- Testing ---
+tests/
+**/__pycache__/

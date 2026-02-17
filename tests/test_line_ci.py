@@ -14,8 +14,8 @@ from plotforge.config import LinePlotConfig, LineCIConfig, StatisticalOverlayCon
 from plotforge.engine import LinePlotEngine
 
 # Create output directory
-output_dir = Path(__file__).parent / "output"
-output_dir.mkdir(exist_ok=True)
+output_dir = Path(__file__).parent / "output" / "line_ci"
+output_dir.mkdir(parents=True, exist_ok=True)
 
 print("=" * 60)
 print("Line Plot Confidence Interval Test Suite")

@@ -14,7 +14,7 @@ from pathlib import Path
 
 # Create test_data directory
 test_data_dir = Path(__file__).parent / "test_data"
-test_data_dir.mkdir(exist_ok=True)
+test_data_dir.mkdir(parents=True, exist_ok=True)
 
 # Set random seed for reproducibility
 np.random.seed(42)

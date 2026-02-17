@@ -17,8 +17,8 @@ from plotforge.config import (
 from plotforge.engine import LinePlotEngine
 
 # Create output directory
-output_dir = Path(__file__).parent / "output"
-output_dir.mkdir(exist_ok=True)
+output_dir = Path(__file__).parent / "output" / "annotations"
+output_dir.mkdir(parents=True, exist_ok=True)
 
 print("=" * 60)
 print("Line Plot Annotation Test Suite")

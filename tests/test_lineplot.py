@@ -13,8 +13,8 @@ from plotforge.config import LinePlotConfig, StyleConfig, AxesConfig, LegendConf
 from plotforge.engine import LinePlotEngine
 
 # Create output directory if it doesn't exist
-output_dir = Path(__file__).parent / "output"
-output_dir.mkdir(exist_ok=True)
+output_dir = Path(__file__).parent / "output" / "lineplot"
+output_dir.mkdir(parents=True, exist_ok=True)
 
 # Create test data
 np.random.seed(42)

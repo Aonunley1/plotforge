@@ -14,8 +14,8 @@ from plotforge.config import LinePlotConfig, ErrorBarConfig, StatisticalOverlayC
 from plotforge.engine import LinePlotEngine
 
 # Create output directory
-output_dir = Path(__file__).parent / "output"
-output_dir.mkdir(exist_ok=True)
+output_dir = Path(__file__).parent / "output" / "error_bars"
+output_dir.mkdir(parents=True, exist_ok=True)
 
 print("=" * 60)
 print("Line Plot Error Bar Test Suite")
