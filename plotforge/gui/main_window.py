@@ -13,7 +13,9 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt
 import matplotlib.figure
 
-from .config_panel import ConfigPanel
+from .config_panels.orchestrator import ConfigOrchestrator
+from .config_panels.scatter_panel import ScatterConfigPanel
+from .config_panels.line_panel import LineConfigPanel
 from .plot_canvas import PlotCanvas
 from .artifact_table import ArtifactTableView
 from .controller import PlotController
@@ -74,13 +76,12 @@ class MainWindow(QMainWindow):
 
         splitter = QSplitter(Qt.Horizontal)
 
-        self.config_panel = ConfigPanel()
+        self.config_panel = ConfigOrchestrator()
+        self.config_panel.register_panel("Scatter Plot", ScatterConfigPanel())
+        self.config_panel.register_panel("Line Plot", LineConfigPanel())
+        
         self.config_panel.update_signal.connect(self.handle_update_plot)
-
-        # NEW: Connect the sheet selector signal
-        # Note: This requires ConfigPanel to have a 'sheet_selected' signal.
-        if hasattr(self.config_panel, 'sheet_selected'):
-            self.config_panel.sheet_selected.connect(self.reload_excel_sheet)
+        self.config_panel.sheet_selected.connect(self.reload_excel_sheet)
 
         splitter.addWidget(self.config_panel)
 
