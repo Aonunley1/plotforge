@@ -31,18 +31,14 @@ class CollapsibleBox(QWidget):
         super().__init__(parent)
 
         self.toggle_button = QToolButton(text=title, checkable=True, checked=expanded)
-        self.toggle_button.setStyleSheet(
-            "QToolButton { border: none; font-weight: bold; padding: 5px; }"
-        )
+        # Style controlled by MAIN_STYLESHEET
         self.toggle_button.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.toggle_button.setArrowType(Qt.DownArrow if expanded else Qt.RightArrow)
         self.toggle_button.toggled.connect(self.on_toggled)
 
         self.content_area = QWidget()
+        self.content_area.setObjectName("sectionContent")
         self.content_area.setVisible(expanded)
-        self.content_area.setStyleSheet(
-            ".QWidget { border: 1px solid #dcdcdc; border-radius: 5px; background-color: #f9f9f9; }"
-        )
 
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setSpacing(0)
@@ -268,18 +264,6 @@ class BaseConfigPanel(QWidget):
 
         # Update Button (Fixed at Bottom)
         self.btn_update = QPushButton("Update Plot")
-        self.btn_update.setStyleSheet("""
-            QPushButton {
-                background-color: #0078d4;
-                color: white;
-                font-weight: bold;
-                padding: 10px;
-                border-radius: 5px;
-            }
-            QPushButton:hover {
-                background-color: #005a9e;
-            }
-        """)
         self.btn_update.clicked.connect(self.update_signal.emit)
         
         button_container = QWidget()

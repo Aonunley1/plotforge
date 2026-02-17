@@ -33,21 +33,12 @@ class ConfigOrchestrator(QWidget):
 
         # 1. Header with Plot Type Selector
         header_widget = QFrame()
-        header_widget.setStyleSheet("""
-            QFrame {
-                background-color: #f0f0f0;
-                border-bottom: 1px solid #dcdcdc;
-            }
-            QLabel {
-                font-weight: bold;
-                font-size: 14px;
-                color: #333;
-            }
-        """)
+        header_widget.setObjectName("sidebarHeader")
         header_layout = QHBoxLayout(header_widget)
         header_layout.setContentsMargins(10, 15, 10, 15)
 
         self.label_type = QLabel("Graph Type:")
+        self.label_type.setObjectName("headerLabel")
         self.combo_type = QComboBox()
         self.combo_type.addItems(["Scatter Plot", "Line Plot"])
         self.combo_type.currentTextChanged.connect(self._on_type_changed)
