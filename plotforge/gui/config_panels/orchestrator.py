@@ -40,7 +40,7 @@ class ConfigOrchestrator(QWidget):
         self.label_type = QLabel("Graph Type:")
         self.label_type.setObjectName("headerLabel")
         self.combo_type = QComboBox()
-        self.combo_type.addItems(["Scatter Plot", "Line Plot"])
+        # NOTE: Do NOT add items here. register_panel() is the single source of truth.
         self.combo_type.currentTextChanged.connect(self._on_type_changed)
 
         header_layout.addWidget(self.label_type)
@@ -51,11 +51,19 @@ class ConfigOrchestrator(QWidget):
         self.stacked_widget = QStackedWidget()
         self.main_layout.addWidget(self.stacked_widget)
 
-    def register_panel(self, name: str, panel: BaseConfigPanel):
-        """Register a new plot-specific panel and add it to the stack."""
+    def register_panel(self, name: str, panel: BaseConfigPanel) -> None:
+        """
+        Register a new plot-specific panel.
+
+        This is the SINGLE SOURCE OF TRUTH for available plot types.
+        It simultaneously adds the name to the dropdown combo box AND
+        the internal panel registry, preventing the silent bug where a
+        panel could be registered but never reachable from the UI.
+        """
         self.panels[name] = panel
+        self.combo_type.addItem(name)  # Keeps combo in sync automatically
         self.stacked_widget.addWidget(panel)
-        
+
         # Connect internal signals to the Orchestrator's external signals
         panel.update_signal.connect(self.update_signal.emit)
         panel.sheet_selected.connect(self.sheet_selected.emit)

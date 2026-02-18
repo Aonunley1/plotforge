@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import matplotlib.figure
 import matplotlib.ticker as ticker
 import statsmodels.api as sm
+from scipy import stats
+from scipy.signal import find_peaks
 from typing import Tuple, List, Dict, Any, Optional
 
 from plotforge.config import BasePlotConfig, ScatterPlotConfig, LinePlotConfig, PlotResult
@@ -150,13 +152,11 @@ class BasePlotEngine(PlotEngine):
             config: Plot configuration with overlays.error_bars
             color_map: Color mapping for groups
         """
-        if not config.overlays or not config.overlays.error_bars:
+        if not config.overlays.error_bars.enabled:
             return
-        
+
         eb_config = config.overlays.error_bars
-        if not eb_config.enabled:
-            return
-        
+
         # Determine error values
         yerr = None
         xerr = None
@@ -249,15 +249,12 @@ class BasePlotEngine(PlotEngine):
             config: Plot configuration with overlays.line_ci
             color_map: Color mapping for groups
         """
-        if not config.overlays or not config.overlays.line_ci:
+        if not config.overlays.line_ci.enabled:
             return
-        
+
         ci_config = config.overlays.line_ci
-        if not ci_config.enabled:
-            return
-        
+
         # Calculate confidence level multiplier (z-score for normal distribution)
-        from scipy import stats
         z_score = stats.norm.ppf((1 + ci_config.level) / 2)
         
         if config.group_by:
@@ -293,60 +290,47 @@ class BasePlotEngine(PlotEngine):
         y_vals = df_sorted[config.y].values
         
         if ci_config.method == 'stderr':
-            # Standard error method
-            # Group by X values and calculate mean and stderr
-            grouped = df_sorted.groupby(config.x)[config.y]
-            
-            x_unique = []
-            y_mean = []
-            y_stderr = []
-            
-            for x_val, y_group in grouped:
-                x_unique.append(x_val)
-                y_mean.append(y_group.mean())
-                # Standard error = std / sqrt(n)
-                stderr = y_group.std() / np.sqrt(len(y_group))
-                y_stderr.append(stderr)
-            
-            x_unique = np.array(x_unique)
-            y_mean = np.array(y_mean)
-            y_stderr = np.array(y_stderr)
-            
+            # Standard error method — fully vectorized via pandas groupby aggregation.
+            # This replaces a Python for-loop with a single C-level pandas operation.
+            agg = df_sorted.groupby(config.x)[config.y].agg(['mean', 'std', 'count'])
+            x_unique = agg.index.values
+            y_mean = agg['mean'].values
+            # Standard error = std / sqrt(n); fill NaN for single-point groups (std=NaN)
+            y_stderr = (agg['std'] / np.sqrt(agg['count'])).fillna(0).values
+
             # Calculate confidence bounds
             y_lower = y_mean - z_score * y_stderr
             y_upper = y_mean + z_score * y_stderr
-            
+
         elif ci_config.method == 'bootstrap':
-            # Bootstrap method
+            # Bootstrap method — outer loop over unique X values is inherently iterative,
+            # but the inner resampling is vectorized via a 2D numpy random draw.
             grouped = df_sorted.groupby(config.x)[config.y]
-            
+
             x_unique = []
             y_lower = []
             y_upper = []
-            
+
+            lower_percentile = (1 - ci_config.level) / 2 * 100
+            upper_percentile = (1 + ci_config.level) / 2 * 100
+
             for x_val, y_group in grouped:
                 x_unique.append(x_val)
-                
-                # Bootstrap resampling
-                bootstrap_means = []
                 y_data = y_group.values
-                
-                for _ in range(ci_config.n_bootstrap):
-                    # Resample with replacement
-                    sample = np.random.choice(y_data, size=len(y_data), replace=True)
-                    bootstrap_means.append(np.mean(sample))
-                
-                # Calculate percentiles for CI
-                lower_percentile = (1 - ci_config.level) / 2 * 100
-                upper_percentile = (1 + ci_config.level) / 2 * 100
-                
+                n = len(y_data)
+
+                # Vectorized resampling: draw all bootstrap samples at once as a 2D array
+                # Shape: (n_bootstrap, n) — each row is one bootstrap sample
+                indices = np.random.randint(0, n, size=(ci_config.n_bootstrap, n))
+                bootstrap_means = y_data[indices].mean(axis=1)
+
                 y_lower.append(np.percentile(bootstrap_means, lower_percentile))
                 y_upper.append(np.percentile(bootstrap_means, upper_percentile))
-            
+
             x_unique = np.array(x_unique)
             y_lower = np.array(y_lower)
             y_upper = np.array(y_upper)
-        
+
         else:
             # Unknown method
             return
@@ -394,13 +378,11 @@ class BasePlotEngine(PlotEngine):
             config: Plot configuration with overlays.annotations
             color_map: Color mapping for groups
         """
-        if not config.overlays or not config.overlays.annotations:
+        if not config.overlays.annotations.enabled:
             return
-        
+
         ann_config = config.overlays.annotations
-        if not ann_config.enabled:
-            return
-        
+
         # Manual annotations
         for annotation in ann_config.annotations:
             self._draw_single_annotation(ax, annotation)
@@ -507,7 +489,6 @@ class BasePlotEngine(PlotEngine):
         
         # Peaks (local maxima)
         if ann_config.annotate_peaks and len(y_vals) >= 3:
-            from scipy.signal import find_peaks
             peaks, _ = find_peaks(y_vals)
             for peak_idx in peaks:
                 label = f"Peak: {y_vals[peak_idx]:.2f}"
@@ -520,7 +501,6 @@ class BasePlotEngine(PlotEngine):
         
         # Troughs (local minima)
         if ann_config.annotate_troughs and len(y_vals) >= 3:
-            from scipy.signal import find_peaks
             # Find peaks in inverted signal = troughs
             troughs, _ = find_peaks(-y_vals)
             for trough_idx in troughs:
@@ -666,7 +646,9 @@ class ScatterPlotEngine(BasePlotEngine):
 
     def draw_core(self, ax, df: pd.DataFrame, config: 'ScatterPlotConfig') -> None:
         style_col = config.style_by
+        # Compute once here; apply_overlays() will reuse via self._color_map
         color_map = self._generate_color_map(df, config)
+        self._color_map = color_map
 
         plot_kwargs = {
             "data": df,
@@ -698,16 +680,16 @@ class ScatterPlotEngine(BasePlotEngine):
     def apply_overlays(self, ax, df: pd.DataFrame, config: 'ScatterPlotConfig') -> Dict[str, Any]:
         artifacts = {}
 
-        # Generate color map once and reuse (performance optimization)
-        color_map = self._generate_color_map(df, config)
+        # Reuse the color map already computed in draw_core() — no second DataFrame scan.
+        color_map = getattr(self, '_color_map', None) or self._generate_color_map(df, config)
 
         # 1. Trendlines (Includes CI)
-        if config.overlays.trendline and config.overlays.trendline.enabled:
+        if config.overlays.trendline.enabled:
             trendline_data = self._calculate_and_draw_trendlines(ax, df, config, color_map)
             artifacts["trendlines"] = pd.DataFrame(trendline_data)
 
         # 2. KDE
-        if config.overlays.kde and config.overlays.kde.enabled:
+        if config.overlays.kde.enabled:
             self._draw_kde(ax, df, config, color_map)
 
         return artifacts

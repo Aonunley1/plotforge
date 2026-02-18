@@ -206,12 +206,12 @@ class AnnotationsConfig:
 
 @dataclass
 class StatisticalOverlayConfig:
-    trendline: Optional[TrendlineConfig] = None
-    kde: Optional[KDEConfig] = None
-    ci: Optional[CIConfig] = None  # For trendline CI
-    error_bars: Optional[ErrorBarConfig] = None
-    line_ci: Optional[LineCIConfig] = None  # For line plot CI
-    annotations: Optional[AnnotationsConfig] = None  # NEW: Annotations
+    trendline: TrendlineConfig = field(default_factory=TrendlineConfig)
+    kde: KDEConfig = field(default_factory=KDEConfig)
+    ci: CIConfig = field(default_factory=CIConfig)  # For trendline CI
+    error_bars: ErrorBarConfig = field(default_factory=ErrorBarConfig)
+    line_ci: LineCIConfig = field(default_factory=LineCIConfig)  # For line plot CI
+    annotations: AnnotationsConfig = field(default_factory=AnnotationsConfig)  # Annotations
 
 
 

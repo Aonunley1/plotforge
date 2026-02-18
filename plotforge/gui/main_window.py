@@ -225,16 +225,41 @@ class MainWindow(QMainWindow):
             )
             return
 
-        df_to_save = self.current_result.artifacts.get("trendlines")
+        # Discover all exportable DataFrame artifacts dynamically.
+        # This works for any current or future plot engine without modification.
+        exportable: dict[str, pd.DataFrame] = {
+            key: val
+            for key, val in self.current_result.artifacts.items()
+            if isinstance(val, pd.DataFrame) and not val.empty
+        }
 
-        if df_to_save is None:
+        if not exportable:
             QMessageBox.information(
-                self, "No Data", "No trendline data found in current plot."
+                self, "No Data", "No tabular artifact data found in current plot."
             )
             return
 
+        # If multiple artifact types exist, ask the user which one to export.
+        if len(exportable) > 1:
+            from PyQt5.QtWidgets import QInputDialog
+
+            artifact_key, ok = QInputDialog.getItem(
+                self,
+                "Select Artifact",
+                "Choose which artifact to export:",
+                list(exportable.keys()),
+                editable=False,
+            )
+            if not ok:
+                return
+        else:
+            artifact_key = next(iter(exportable))
+
+        df_to_save = exportable[artifact_key]
+        default_filename = f"{artifact_key}.csv"
+
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Export Artifacts", "trendlines.csv", "CSV Files (*.csv)"
+            self, "Export Artifacts", default_filename, "CSV Files (*.csv)"
         )
 
         if file_path:
