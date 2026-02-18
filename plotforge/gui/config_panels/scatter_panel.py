@@ -50,9 +50,9 @@ class ScatterConfigPanel(BaseConfigPanel):
         self.combo_edgecolor = QComboBox()
         self.combo_edgecolor.addItems(["black", "white", "none", "gray", "red", "blue"])
 
-        self.combo_palette = QComboBox()
-        self.combo_palette.addItem("Custom (Blue/Red/Green/Orange)", "custom")
-        self.combo_palette.addItems(["deep", "muted", "bright", "pastel", "dark", "colorblind"])
+        self.combo_palette = self._build_palette_combo(
+            default_label="Custom (Blue/Red/Green/Orange)", default_data="custom"
+        )
 
         self.combo_markers = QComboBox()
         self.combo_markers.addItem("Custom (o, X, ^, s)", "custom")

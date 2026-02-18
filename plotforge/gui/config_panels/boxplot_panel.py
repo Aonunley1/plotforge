@@ -47,9 +47,7 @@ class BoxPlotConfigPanel(BaseConfigPanel):
         self.spin_fliersize.setRange(0.0, 20.0)
         self.spin_fliersize.setValue(5.0)
         
-        self.combo_palette = QComboBox()
-        self.combo_palette.addItem("Default", "default")
-        self.combo_palette.addItems(["deep", "muted", "bright", "pastel", "dark", "colorblind"])
+        self.combo_palette = self._build_palette_combo()
 
         box_layout.addRow("Orientation:", self.combo_orient)
         box_layout.addRow("Box Width:", self.spin_width)

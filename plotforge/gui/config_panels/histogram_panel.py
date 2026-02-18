@@ -78,9 +78,7 @@ class HistogramConfigPanel(BaseConfigPanel):
         self.spin_linewidth.setRange(0.0, 10.0)
         self.spin_linewidth.setValue(0.0)
         
-        self.combo_palette = QComboBox()
-        self.combo_palette.addItem("Default", "default")
-        self.combo_palette.addItems(["deep", "muted", "bright", "pastel", "dark", "colorblind"])
+        self.combo_palette = self._build_palette_combo()
 
         hist_layout.addRow("Bins:", bins_layout)
         hist_layout.addRow("Statistic:", self.combo_stat)

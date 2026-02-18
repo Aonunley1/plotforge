@@ -883,20 +883,11 @@ class HistogramPlotEngine(BasePlotEngine):
         sns.histplot(**plot_kwargs)
         
     def apply_overlays(self, ax, df: pd.DataFrame, config: 'HistogramConfig') -> Dict[str, Any]:
-        # Reuse color map
         color_map = getattr(self, '_color_map', None) or self._generate_color_map(df, config)
-        
-        # Histograms support annotations via BasePlotEngine mechanism? 
-        # BasePlotEngine relies on subclasses to call overlay methods.
-        # But 'annotations' are in StatisticalOverlayConfig.
-        # Let's see if we want to support them.
-        # Yes, standard annotations should work if x/y coordinates match.
-        
-        if config.overlays and config.overlays.annotations and config.overlays.annotations.enabled:
-             self._add_annotations(ax, df, config, color_map)
-             
-        # ROI / Vertical Lines could be added here if we had them in config.
-        # Currently none other than annotations.
+
+        if config.overlays.annotations.enabled:
+            self._add_annotations(ax, df, config, color_map)
+
         return {}
 
 
@@ -915,28 +906,27 @@ class LinePlotEngine(BasePlotEngine):
 
     def draw_core(self, ax, df: pd.DataFrame, config: 'LinePlotConfig') -> None:
         """Draw the line plot"""
-        
+
         # Validate required columns
         self._validate_columns(df, [config.x, config.y])
-        
-        # Generate color mapping
+
+        # Generate color mapping — cached so apply_overlays() can reuse without recomputing
         color_map = self._generate_color_map(df, config)
-        
+        self._color_map = color_map
+
         # Add confidence intervals FIRST (so they appear behind lines)
         self._add_line_ci(ax, df, config, color_map)
-        
+
         if config.group_by:
-            # Multiple lines (one per group)
             for group_name, group_df in df.groupby(config.group_by):
                 self._draw_single_line(ax, group_df, config, color_map, group_name)
         else:
-            # Single line
             self._draw_single_line(ax, df, config, color_map)
-        
-        # Add error bars if configured (after lines, so they appear on top)
+
+        # Error bars after lines (appear on top)
         self._add_error_bars(ax, df, config, color_map)
-        
-        # Add annotations if configured (last, so they appear on top of everything)
+
+        # Annotations last (appear on top of everything)
         self._add_annotations(ax, df, config, color_map)
 
     def _draw_single_line(
@@ -991,15 +981,8 @@ class BarPlotEngine(BasePlotEngine):
     """
     
     def draw_core(self, ax, df: pd.DataFrame, config: 'BarPlotConfig') -> None:
-        # Validate columns
-        required = [config.x]
-        if config.orientation == 'v' and config.y:
-            required.append(config.y)
-        elif config.orientation == 'h' and config.y:
-            required.append(config.y)
-        # If one axis is missing, seaborn might treat it as a count plot or index plot,
-        # but for safety we usually want both for barplot unless it's a pure count.
-        
+        # Validate whichever columns are specified (y is optional for count estimator)
+        required = [col for col in [config.x, config.y] if col]
         self._validate_columns(df, required)
         
         color_map = self._generate_color_map(df, config)
@@ -1058,11 +1041,10 @@ class BarPlotEngine(BasePlotEngine):
         
     def apply_overlays(self, ax, df: pd.DataFrame, config: 'BarPlotConfig') -> Dict[str, Any]:
         color_map = getattr(self, '_color_map', None) or self._generate_color_map(df, config)
-        
-        # Annotations support
-        if config.overlays.annotations and config.overlays.annotations.enabled:
-             self._add_annotations(ax, df, config, color_map)
-             
+
+        if config.overlays.annotations.enabled:
+            self._add_annotations(ax, df, config, color_map)
+
         return {}
 
 
@@ -1073,13 +1055,8 @@ class BoxPlotEngine(BasePlotEngine):
     """
     
     def draw_core(self, ax, df: pd.DataFrame, config: 'BoxPlotConfig') -> None:
-        # Validate columns
-        required = [config.x]
-        if config.orientation == 'v' and config.y:
-            required.append(config.y)
-        elif config.orientation == 'h' and config.y:
-            required.append(config.y)
-        
+        # Validate whichever columns are specified
+        required = [col for col in [config.x, config.y] if col]
         self._validate_columns(df, required)
         
         color_map = self._generate_color_map(df, config)
@@ -1116,11 +1093,10 @@ class BoxPlotEngine(BasePlotEngine):
         
     def apply_overlays(self, ax, df: pd.DataFrame, config: 'BoxPlotConfig') -> Dict[str, Any]:
         color_map = getattr(self, '_color_map', None) or self._generate_color_map(df, config)
-        
-        # Annotations support
-        if config.overlays.annotations and config.overlays.annotations.enabled:
-             self._add_annotations(ax, df, config, color_map)
-             
+
+        if config.overlays.annotations.enabled:
+            self._add_annotations(ax, df, config, color_map)
+
         # Add basic statistics as artifacts
         artifacts = {}
         

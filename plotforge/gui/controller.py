@@ -1,7 +1,6 @@
 from PyQt5.QtCore import QObject
 import pandas as pd
 
-from plotforge.config import BasePlotConfig, ScatterPlotConfig, LinePlotConfig, HistogramConfig, BarPlotConfig, PlotResult
 from plotforge.config import BasePlotConfig, ScatterPlotConfig, LinePlotConfig, HistogramConfig, BarPlotConfig, BoxPlotConfig, PlotResult
 from plotforge.engine import ScatterPlotEngine, LinePlotEngine, HistogramPlotEngine, BarPlotEngine, BoxPlotEngine
 

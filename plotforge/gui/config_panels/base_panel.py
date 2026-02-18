@@ -24,6 +24,9 @@ from plotforge.config import (
     ReferenceLinesConfig,
 )
 
+# Single source of truth for the seaborn palette list used across all panels.
+SEABORN_PALETTES = ["deep", "muted", "bright", "pastel", "dark", "colorblind"]
+
 
 class CollapsibleBox(QWidget):
     """A premium-styled collapsible container for grouping UI controls."""
@@ -295,6 +298,17 @@ class BaseConfigPanel(QWidget):
         self.spin_leg_x.setEnabled(checked)
         self.spin_leg_y.setEnabled(checked)
         self.spin_leg_col.setEnabled(checked)
+
+    # --- Shared Widget Factories ---
+    def _build_palette_combo(self, default_label: str = "Default", default_data: str = "default") -> "QComboBox":
+        """
+        Build a palette selector pre-populated with SEABORN_PALETTES.
+        All panels use this to avoid duplicating the palette list.
+        """
+        combo = QComboBox()
+        combo.addItem(default_label, default_data)
+        combo.addItems(SEABORN_PALETTES)
+        return combo
 
     # --- Public API ---
     def update_sheet_selector(self, sheets: List[str]):

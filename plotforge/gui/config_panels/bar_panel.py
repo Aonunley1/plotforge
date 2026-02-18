@@ -66,9 +66,7 @@ class BarPlotConfigPanel(BaseConfigPanel):
         self.combo_edgecolor = QComboBox()
         self.combo_edgecolor.addItems(["none", "black", "white", "gray"])
         
-        self.combo_palette = QComboBox()
-        self.combo_palette.addItem("Default", "default")
-        self.combo_palette.addItems(["deep", "muted", "bright", "pastel", "dark", "colorblind"])
+        self.combo_palette = self._build_palette_combo()
 
         bar_layout.addRow("Orientation:", self.combo_orient)
         bar_layout.addRow("Estimator:", self.combo_estimator)
@@ -90,10 +88,6 @@ class BarPlotConfigPanel(BaseConfigPanel):
         final_palette = DEFAULT_PALETTE if palette_val == "default" else self.combo_palette.currentText()
         
         errorbar_val = self.combo_errorbar.currentData()
-        
-        # Fix: If user selects None in errorbar, pass None directly? 
-        # Config expects Optional[str]. We use "none" string in combo, convert to None?
-        # Or let engine handle "none". Engine handles "none".
 
         return BarPlotConfig(
             **base_data,
