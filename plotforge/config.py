@@ -277,3 +277,26 @@ class PlotResult:
     figure: Any
     artifacts: Dict[str, Any]
     warnings: List[str]
+
+
+@dataclass
+class HistogramConfig(BasePlotConfig):
+    """Configuration for histogram plots"""
+    x: str = ""
+    # Note: Histogram doesn't typically use 'y' for input data unless horizontal.
+    # BasePlotConfig doesn't enforce x/y fields.
+    
+    bins: Union[int, str] = "auto"
+    stat: str = "count"  # count, frequency, probability, percent, density
+    kde: bool = False
+    cumulative: bool = False
+    element: str = "bars" # bars, step, poly
+    fill: bool = True
+    log_scale: bool = False
+    
+    # Styling
+    alpha: float = 0.5
+    linewidth: float = 0.0
+    edgecolor: Optional[str] = None
+    
+    # Palette inherited from BasePlotConfig

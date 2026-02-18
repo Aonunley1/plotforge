@@ -10,7 +10,7 @@ from scipy import stats
 from scipy.signal import find_peaks
 from typing import Tuple, List, Dict, Any, Optional
 
-from plotforge.config import BasePlotConfig, ScatterPlotConfig, LinePlotConfig, PlotResult
+from plotforge.config import BasePlotConfig, ScatterPlotConfig, LinePlotConfig, HistogramConfig, PlotResult
 
 
 class PlotEngine(abc.ABC):
@@ -799,10 +799,12 @@ class ScatterPlotEngine(BasePlotEngine):
                 color=line_color,
                 linewidth=trend_config.linewidth,
                 linestyle=trend_config.linestyle,
+                label=f"{name} (Trend)",
                 alpha=trend_config.alpha,
                 zorder=2
             )
 
+            # Calculate confidence intervals and standard errors
             param_ci = model.conf_int(alpha=conf_alpha)
             bse = model.bse
 
@@ -829,6 +831,75 @@ class ScatterPlotEngine(BasePlotEngine):
             results.append(row_data)
 
         return results
+
+
+class HistogramPlotEngine(BasePlotEngine):
+    """Ref: SPEC-1A Section 6 (New)"""
+    
+    def draw_core(self, ax, df: pd.DataFrame, config: 'HistogramConfig') -> None:
+        # Generate color map (uses 'hue' logic)
+        color_map = self._generate_color_map(df, config)
+        self._color_map = color_map
+        
+        plot_kwargs = {
+            "data": df,
+            "x": config.x,
+            "stat": config.stat,
+            "kde": config.kde,
+            "cumulative": config.cumulative,
+            "element": config.element,
+            "fill": config.fill,
+            "log_scale": config.log_scale,
+            "alpha": config.alpha,
+            "linewidth": config.linewidth,
+            "ax": ax
+        }
+        
+        if config.edgecolor and config.edgecolor.lower() != "none":
+            plot_kwargs["edgecolor"] = config.edgecolor
+        
+        # Handle bins
+        if config.bins != "auto":
+             try:
+                 plot_kwargs["bins"] = int(config.bins)
+             except ValueError:
+                 plot_kwargs["bins"] = config.bins
+        else:
+            plot_kwargs["bins"] = "auto"
+
+        # Handle grouping/coloring
+        if config.group_by:
+            plot_kwargs["hue"] = config.group_by
+            plot_kwargs["palette"] = color_map
+            # If element is 'poly' or 'step', we might want common_norm=False?
+            # Usually strict users want density normalized per group.
+            # Default behavior of sns.histplot is pretty good.
+        else:
+            if isinstance(color_map, dict) and "_SINGLE_" in color_map:
+                 plot_kwargs["color"] = color_map["_SINGLE_"]
+            else:
+                 plot_kwargs["color"] = "blue"
+
+        sns.histplot(**plot_kwargs)
+        
+    def apply_overlays(self, ax, df: pd.DataFrame, config: 'HistogramConfig') -> Dict[str, Any]:
+        # Reuse color map
+        color_map = getattr(self, '_color_map', None) or self._generate_color_map(df, config)
+        
+        # Histograms support annotations via BasePlotEngine mechanism? 
+        # BasePlotEngine relies on subclasses to call overlay methods.
+        # But 'annotations' are in StatisticalOverlayConfig.
+        # Let's see if we want to support them.
+        # Yes, standard annotations should work if x/y coordinates match.
+        
+        if config.overlays and config.overlays.annotations and config.overlays.annotations.enabled:
+             self._add_annotations(ax, df, config, color_map)
+             
+        # ROI / Vertical Lines could be added here if we had them in config.
+        # Currently none other than annotations.
+        return {}
+
+
 
 
 class LinePlotEngine(BasePlotEngine):
