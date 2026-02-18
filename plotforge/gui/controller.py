@@ -1,8 +1,8 @@
 from PyQt5.QtCore import QObject
 import pandas as pd
 
-from plotforge.config import BasePlotConfig, ScatterPlotConfig, LinePlotConfig, HistogramConfig, PlotResult
-from plotforge.engine import ScatterPlotEngine, LinePlotEngine, HistogramPlotEngine
+from plotforge.config import BasePlotConfig, ScatterPlotConfig, LinePlotConfig, HistogramConfig, BarPlotConfig, PlotResult
+from plotforge.engine import ScatterPlotEngine, LinePlotEngine, HistogramPlotEngine, BarPlotEngine
 
 
 class PlotController(QObject):
@@ -17,6 +17,8 @@ class PlotController(QObject):
             engine = LinePlotEngine()
         elif isinstance(config, HistogramConfig):
             engine = HistogramPlotEngine()
+        elif isinstance(config, BarPlotConfig):
+            engine = BarPlotEngine()
         else:
             raise ValueError(f"Unsupported configuration type: {type(config)}")
 

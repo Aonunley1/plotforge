@@ -10,7 +10,7 @@ from scipy import stats
 from scipy.signal import find_peaks
 from typing import Tuple, List, Dict, Any, Optional
 
-from plotforge.config import BasePlotConfig, ScatterPlotConfig, LinePlotConfig, HistogramConfig, PlotResult
+from plotforge.config import BasePlotConfig, ScatterPlotConfig, LinePlotConfig, HistogramConfig, BarPlotConfig, PlotResult
 
 
 class PlotEngine(abc.ABC):
@@ -938,46 +938,130 @@ class LinePlotEngine(BasePlotEngine):
         
         # Add annotations if configured (last, so they appear on top of everything)
         self._add_annotations(ax, df, config, color_map)
-    
-    def _draw_single_line(self, ax, df, config, color_map, label=None):
-        """Helper to draw a single line"""
+
+    def _draw_single_line(
+        self,
+        ax: plt.Axes,
+        df: pd.DataFrame,
+        config: 'LinePlotConfig',
+        color_map: Dict[Any, Any],
+        group_name: Optional[Any] = None
+    ) -> None:
+        """Draw a single line series"""
         
-        # Get color
-        color = color_map.get(label, color_map.get("_SINGLE_", "blue"))
+        # Sort by X
+        df_sorted = df.sort_values(config.x)
+        x_vals = df_sorted[config.x]
+        y_vals = df_sorted[config.y]
         
-        # Sort by X for proper line drawing
-        df_sorted = df[[config.x, config.y]].dropna().sort_values(config.x)
+        # Determine color
+        if group_name is not None:
+             color = color_map.get(group_name, "black")
+        else:
+             color = color_map.get("_SINGLE_", "black")
+             
+        # Plot arguments
+        plot_kwargs = {
+            "linewidth": config.linewidth,
+            "linestyle": config.linestyle,
+            "color": color,
+            "alpha": config.alpha,
+            "label": str(group_name) if group_name is not None else config.y
+        }
         
-        if df_sorted.empty:
-            return
+        if config.show_markers:
+            plot_kwargs["marker"] = config.marker_style
+            plot_kwargs["markersize"] = config.marker_size
+            
+        ax.plot(x_vals, y_vals, **plot_kwargs)
         
-        # Draw line
-        ax.plot(
-            df_sorted[config.x],
-            df_sorted[config.y],
-            color=color,
-            linewidth=config.linewidth,
-            linestyle=config.linestyle,
-            marker=config.marker_style if config.show_markers else None,
-            markersize=config.marker_size if config.show_markers else 0,
-            alpha=config.alpha,
-            label=label
-        )
-        
-        # Optional fill
+        # Fill between
         if config.fill_between:
             ax.fill_between(
-                df_sorted[config.x],
-                df_sorted[config.y],
-                alpha=config.fill_alpha,
-                color=color
+                x_vals, 0, y_vals,
+                color=color,
+                alpha=config.fill_alpha
             )
+
+
+class BarPlotEngine(BasePlotEngine):
+    """
+    Engine for creating bar plots.
+    Supports aggregation (mean, sum, etc.) and error bars.
+    """
     
-    def apply_overlays(self, ax, df, config):
-        """Apply line-specific overlays"""
-        artifacts = {}
+    def draw_core(self, ax, df: pd.DataFrame, config: 'BarPlotConfig') -> None:
+        # Validate columns
+        required = [config.x]
+        if config.orientation == 'v' and config.y:
+            required.append(config.y)
+        elif config.orientation == 'h' and config.y:
+            required.append(config.y)
+        # If one axis is missing, seaborn might treat it as a count plot or index plot,
+        # but for safety we usually want both for barplot unless it's a pure count.
         
-        # Confidence intervals could be added here in the future
-        # For now, line plots don't have specific overlays beyond fill_between
+        self._validate_columns(df, required)
         
-        return artifacts
+        color_map = self._generate_color_map(df, config)
+        self._color_map = color_map
+        
+        # Map simple estimator strings to actual functions if needed,
+        # but seaborn handles "mean", "median", "sum", "min", "max" directly.
+        estimator = config.estimator
+        if estimator == "count":
+            estimator = len
+
+        
+        # Prepare arguments
+        plot_kwargs = {
+            "data": df,
+            "x": config.x,
+            "y": config.y,
+            "estimator": estimator,
+            "errorbar": config.errorbar if config.errorbar != "none" else None,
+            "capsize": config.capsize,
+            "width": config.width,
+            "alpha": config.alpha,
+            "linewidth": config.linewidth,
+            "ax": ax
+        }
+        
+        if config.orientation == 'h':
+            # Swap x and y in kwargs is NOT enough for seaborn if we want horizontal bars.
+            # Seaborn infers orientation from x/y types usually, or we can explicit swap.
+            # If config.orientation is 'h', user likely mapped Categorical to Y and Value to X.
+            # But if they mapped standard (Cat->X, Val->Y) and requested horizontal,
+            # we should swap them here.
+            # However, typically config.x/y match the user's intent.
+            # If user wants horizontal, they put the category on Y.
+            # So standard kwargs are likely correct as long as config.x/y are correct.
+            # Using 'orient' parameter can enforce it.
+            plot_kwargs["orient"] = "h"
+        else:
+            plot_kwargs["orient"] = "v"
+            
+        if config.edgecolor:
+            plot_kwargs["edgecolor"] = config.edgecolor
+            
+        # Coloring
+        if config.group_by:
+            plot_kwargs["hue"] = config.group_by
+            plot_kwargs["palette"] = color_map
+        else:
+            # Single color
+            if isinstance(color_map, dict) and "_SINGLE_" in color_map:
+                 plot_kwargs["color"] = color_map["_SINGLE_"]
+            else:
+                 plot_kwargs["color"] = "blue"
+        
+        sns.barplot(**plot_kwargs)
+        
+    def apply_overlays(self, ax, df: pd.DataFrame, config: 'BarPlotConfig') -> Dict[str, Any]:
+        color_map = getattr(self, '_color_map', None) or self._generate_color_map(df, config)
+        
+        # Annotations support
+        if config.overlays.annotations and config.overlays.annotations.enabled:
+             self._add_annotations(ax, df, config, color_map)
+             
+        return {}
+    

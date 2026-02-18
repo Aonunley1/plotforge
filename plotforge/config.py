@@ -300,3 +300,26 @@ class HistogramConfig(BasePlotConfig):
     edgecolor: Optional[str] = None
     
     # Palette inherited from BasePlotConfig
+
+
+@dataclass
+class BarPlotConfig(BasePlotConfig):
+    """Configuration for bar plots"""
+    x: str = ""
+    y: str = ""
+    
+    # Orientation
+    orientation: str = "v"  # 'v' for vertical, 'h' for horizontal
+    
+    # Aggregation
+    estimator: str = "mean" # mean, median, sum, count, min, max
+    errorbar: Optional[str] = "ci" # ci, pi, se, sd, None
+    
+    # Visuals
+    width: float = 0.8  # Width of bars
+    alpha: float = 0.8
+    linewidth: float = 0.0
+    edgecolor: Optional[str] = None
+    
+    # Capsize for error bars
+    capsize: float = 0.1
