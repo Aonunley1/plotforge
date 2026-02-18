@@ -18,6 +18,7 @@ from .config_panels.scatter_panel import ScatterConfigPanel
 from .config_panels.line_panel import LineConfigPanel
 from .config_panels.histogram_panel import HistogramConfigPanel
 from .config_panels.bar_panel import BarPlotConfigPanel
+from .config_panels.boxplot_panel import BoxPlotConfigPanel
 from .plot_canvas import PlotCanvas
 from .artifact_table import ArtifactTableView
 from .controller import PlotController
@@ -83,6 +84,7 @@ class MainWindow(QMainWindow):
         self.config_panel.register_panel("Line Plot", LineConfigPanel())
         self.config_panel.register_panel("Histogram", HistogramConfigPanel())
         self.config_panel.register_panel("Bar Plot", BarPlotConfigPanel())
+        self.config_panel.register_panel("Box Plot", BoxPlotConfigPanel())
         
         self.config_panel.update_signal.connect(self.handle_update_plot)
         self.config_panel.sheet_selected.connect(self.reload_excel_sheet)

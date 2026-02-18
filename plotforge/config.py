@@ -323,3 +323,27 @@ class BarPlotConfig(BasePlotConfig):
     
     # Capsize for error bars
     capsize: float = 0.1
+
+
+@dataclass
+class BoxPlotConfig(BasePlotConfig):
+    """Configuration for box plots"""
+    x: str = ""
+    y: str = ""
+    
+    # Orientation
+    orientation: str = "v"  # 'v' for vertical, 'h' for horizontal
+    
+    # Visuals
+    width: float = 0.8
+    linewidth: float = 1.5
+    fliersize: float = 5.0  # Size of outlier markers
+    
+    # Features
+    notch: bool = False
+    showmeans: bool = False
+    
+    # Styling
+    # Palette inherited, but boxprops/whiskerprops can be stylized if needed.
+    # For now, base properties suffice.
+

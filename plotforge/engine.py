@@ -10,7 +10,7 @@ from scipy import stats
 from scipy.signal import find_peaks
 from typing import Tuple, List, Dict, Any, Optional
 
-from plotforge.config import BasePlotConfig, ScatterPlotConfig, LinePlotConfig, HistogramConfig, BarPlotConfig, PlotResult
+from plotforge.config import BasePlotConfig, ScatterPlotConfig, LinePlotConfig, HistogramConfig, BarPlotConfig, BoxPlotConfig, PlotResult
 
 
 class PlotEngine(abc.ABC):
@@ -1064,4 +1064,88 @@ class BarPlotEngine(BasePlotEngine):
              self._add_annotations(ax, df, config, color_map)
              
         return {}
+
+
+class BoxPlotEngine(BasePlotEngine):
+    """
+    Engine for creating box plots (box-and-whisker).
+    Supports grouping, orientation, and outliers.
+    """
+    
+    def draw_core(self, ax, df: pd.DataFrame, config: 'BoxPlotConfig') -> None:
+        # Validate columns
+        required = [config.x]
+        if config.orientation == 'v' and config.y:
+            required.append(config.y)
+        elif config.orientation == 'h' and config.y:
+            required.append(config.y)
+        
+        self._validate_columns(df, required)
+        
+        color_map = self._generate_color_map(df, config)
+        self._color_map = color_map
+        
+        plot_kwargs = {
+            "data": df,
+            "x": config.x,
+            "y": config.y,
+            "notch": config.notch,
+            "showmeans": config.showmeans,
+            "width": config.width,
+            "linewidth": config.linewidth,
+            "fliersize": config.fliersize,
+            "ax": ax
+        }
+        
+        if config.orientation == 'h':
+            plot_kwargs["orient"] = "h"
+        else:
+            plot_kwargs["orient"] = "v"
+            
+        # Coloring
+        if config.group_by:
+            plot_kwargs["hue"] = config.group_by
+            plot_kwargs["palette"] = color_map
+        else:
+            if isinstance(color_map, dict) and "_SINGLE_" in color_map:
+                 plot_kwargs["color"] = color_map["_SINGLE_"]
+            else:
+                 plot_kwargs["color"] = "blue"
+        
+        sns.boxplot(**plot_kwargs)
+        
+    def apply_overlays(self, ax, df: pd.DataFrame, config: 'BoxPlotConfig') -> Dict[str, Any]:
+        color_map = getattr(self, '_color_map', None) or self._generate_color_map(df, config)
+        
+        # Annotations support
+        if config.overlays.annotations and config.overlays.annotations.enabled:
+             self._add_annotations(ax, df, config, color_map)
+             
+        # Add basic statistics as artifacts
+        artifacts = {}
+        
+        # Determine primary grouping variable (the categorical axis)
+        if config.orientation == 'v':
+            primary_group = config.x
+            value_col = config.y
+        else:
+            primary_group = config.y
+            value_col = config.x
+            
+        group_cols = []
+        if primary_group and primary_group in df.columns:
+            group_cols.append(primary_group)
+            
+        if config.group_by and config.group_by in df.columns:
+            group_cols.append(config.group_by)
+            
+        if group_cols:
+             stats = df.groupby(group_cols)[value_col].describe()
+             artifacts["box_stats"] = stats
+        else:
+            desc = df[value_col].describe().to_frame().T
+            desc["group"] = "All"
+            artifacts["box_stats"] = desc
+             
+        return artifacts
     
