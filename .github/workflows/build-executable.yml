@@ -33,7 +33,7 @@ jobs:
         # --onefile creates a single standalone .exe
         # --windowed ensures no black command prompt appears when users run the app
         run: |
-          pyinstaller --onefile --windowed --name PlotForge plotforge/main.py
+          pyinstaller --onefile --windowed --name PlotForge --collect-all matplotlib --collect-all seaborn --collect-all pandas --collect-all PyQt5 plotforge/main.py
 
       - name: Create Release and Upload Executable
         uses: softprops/action-gh-release@v2
