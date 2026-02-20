@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QCheckBox,
     QDoubleSpinBox,
+    QSpinBox,
     QLabel,
     QHBoxLayout,
 )
@@ -58,12 +59,19 @@ class ScatterConfigPanel(BaseConfigPanel):
         self.combo_markers.addItem("Custom (o, X, ^, s)", "custom")
         self.combo_markers.addItem("Auto (Seaborn Default)", "auto")
 
+        # Bins: 0 = disabled (plot raw points); >1 = aggregate into N equal-width bins
+        self.spin_bins = QSpinBox()
+        self.spin_bins.setRange(0, 500)
+        self.spin_bins.setValue(0)
+        self.spin_bins.setSpecialValueText("Off")  # Shows "Off" when value is 0
+
         scatter_layout.addRow("Marker Size:", self.spin_size)
         scatter_layout.addRow("Opacity:", self.spin_alpha)
         scatter_layout.addRow("Edge Width:", self.spin_linewidth)
         scatter_layout.addRow("Edge Color:", self.combo_edgecolor)
         scatter_layout.addRow("Palette:", self.combo_palette)
         scatter_layout.addRow("Markers:", self.combo_markers)
+        scatter_layout.addRow("Bins:", self.spin_bins)
         scatter_group.setLayout(scatter_layout)
 
         # 2. Statistical Overlays (Scatter Specific)
@@ -186,5 +194,6 @@ class ScatterConfigPanel(BaseConfigPanel):
             edgecolor=self.combo_edgecolor.currentText(),
             palette=final_palette,
             markers=final_markers,
+            bins=self.spin_bins.value() if self.spin_bins.value() > 0 else None,
             overlays=StatisticalOverlayConfig(trendline=trendline, kde=kde, ci=ci),
         )

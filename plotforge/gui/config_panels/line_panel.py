@@ -94,7 +94,12 @@ class LineConfigPanel(BaseConfigPanel):
         self.check_line_ci.toggled.connect(self._toggle_ci_options)
         
         self.combo_ci_method = QComboBox()
-        self.combo_ci_method.addItems(["stderr", "bootstrap"])
+        self.combo_ci_method.addItems(["ci", "se", "sd"])
+        self.combo_ci_method.setToolTip(
+            "ci = Bootstrap CI (recommended)\n"
+            "se = ±1 Standard Error band\n"
+            "sd = ±1 Standard Deviation band"
+        )
         self.combo_ci_method.setEnabled(False)
 
         self.spin_ci_level = QDoubleSpinBox()
@@ -133,7 +138,7 @@ class LineConfigPanel(BaseConfigPanel):
         line_ci = LineCIConfig(
             enabled=self.check_line_ci.isChecked(),
             method=self.combo_ci_method.currentText(),
-            level=self.spin_ci_level.value()
+            level=self.spin_ci_level.value(),
         )
 
         return LinePlotConfig(

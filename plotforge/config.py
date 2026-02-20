@@ -63,9 +63,11 @@ class AxesConfig:
     y_min: Optional[float] = None
     y_max: Optional[float] = None
 
-    # Tick Intervals
+    # Tick Intervals — None means "let matplotlib decide"
     x_major_interval: Optional[float] = None
     y_major_interval: Optional[float] = None
+    x_minor_interval: Optional[float] = None  # None = no minor ticks
+    y_minor_interval: Optional[float] = None  # None = no minor ticks
 
     # Reference Lines (Replaces Range/VLine)
     ref_lines: ReferenceLinesConfig = field(default_factory=ReferenceLinesConfig)
@@ -137,21 +139,19 @@ class ErrorBarConfig:
 
 @dataclass
 class LineCIConfig:
-    """Configuration for confidence intervals around line plots"""
+    """Configuration for confidence intervals around line plots.
+
+    method maps directly to seaborn's errorbar parameter:
+      "ci"  — bootstrap confidence interval (seaborn default, recommended)
+      "se"  — standard-error band  (±1 SE by default)
+      "sd"  — standard-deviation band
+    """
     enabled: bool = False
-    
-    # Confidence level (e.g., 0.95 for 95% CI)
-    level: float = 0.95
-    
-    # Method: 'stderr' (standard error) or 'bootstrap'
-    method: str = 'stderr'
-    
-    # Bootstrap parameters (only used if method='bootstrap')
-    n_bootstrap: int = 1000
-    
-    # Styling
+    level: float = 0.95   # Used for "ci" (as a percentage: 95 → 95% CI)
+    method: str = "ci"    # "ci" | "se" | "sd"
+
+    # Styling — alpha for the shaded band
     alpha: float = 0.2
-    color: Optional[str] = None  # None = use line color
 
 
 @dataclass
@@ -245,6 +245,9 @@ class ScatterPlotConfig(BasePlotConfig):
     edgecolor: str = "black"
     # palette inherited from BasePlotConfig
     markers: Union[List[str], bool] = field(default_factory=lambda: DEFAULT_MARKERS.copy())
+    # When set, x is divided into this many equal-width bins and the mean y per
+    # bin is plotted instead of individual raw points.
+    bins: Optional[int] = None
 
 
 @dataclass

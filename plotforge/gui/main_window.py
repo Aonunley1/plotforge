@@ -288,7 +288,18 @@ class MainWindow(QMainWindow):
 
         if file_path:
             try:
-                self.current_result.figure.savefig(file_path, dpi=300)
+                fig = self.current_result.figure
+                dpi = self.current_config.save.dpi if self.current_config else 300
+
+                # Save the figure exactly as rendered on screen.
+                # constrained_layout has already computed the correct layout for
+                # the screen dimensions — resizing the figure before save causes
+                # the axes to degenerate (box plots collapse to a narrow strip).
+                # bbox_inches='tight' trims any surrounding whitespace.
+                fig.savefig(file_path, dpi=dpi, bbox_inches="tight")
+
                 self.status_label.setText(f"Figure saved to {file_path}")
             except Exception as e:
                 QMessageBox.critical(self, "Save Error", str(e))
+
+

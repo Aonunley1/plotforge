@@ -183,6 +183,20 @@ class BaseConfigPanel(QWidget):
         tick_layout.addWidget(self.spin_y_major)
         visual_layout.addRow(tick_layout)
 
+        minor_tick_layout = QHBoxLayout()
+        self.spin_x_minor = QDoubleSpinBox()
+        self.spin_x_minor.setValue(0.0)  # 0 = disabled
+        self.spin_x_minor.setEnabled(False)
+        self.spin_y_minor = QDoubleSpinBox()
+        self.spin_y_minor.setValue(0.0)  # 0 = disabled
+        self.spin_y_minor.setEnabled(False)
+        minor_tick_layout.addWidget(QLabel("X Minor:"))
+        minor_tick_layout.addWidget(self.spin_x_minor)
+        minor_tick_layout.addWidget(QLabel("Y Minor:"))
+        minor_tick_layout.addWidget(self.spin_y_minor)
+        minor_tick_layout.addWidget(QLabel("(0 = none)"))
+        visual_layout.addRow(minor_tick_layout)
+
         # Reference Lines
         visual_layout.addRow(QLabel("<b>Reference Lines (Vertical)</b>"))
         line1_layout = QHBoxLayout()
@@ -289,6 +303,8 @@ class BaseConfigPanel(QWidget):
     def _toggle_ticks(self, checked: bool):
         self.spin_x_major.setEnabled(checked)
         self.spin_y_major.setEnabled(checked)
+        self.spin_x_minor.setEnabled(checked)
+        self.spin_y_minor.setEnabled(checked)
 
     def _toggle_ref_lines(self):
         self.spin_x1.setEnabled(self.check_line1.isChecked())
@@ -343,7 +359,9 @@ class BaseConfigPanel(QWidget):
             enabled=True,
             title=self.line_legend_title.text() or None,
             bbox_to_anchor=bbox,
-            ncol=self.spin_leg_col.value() if self.spin_leg_col.value() > 0 else 1,
+            # Only forward ncol when the user has explicitly enabled custom legend placement.
+            # Otherwise leave it None so matplotlib uses its own default column count.
+            ncol=self.spin_leg_col.value() if self.check_legend_pos.isChecked() else None,
         )
 
         # Axes
@@ -363,6 +381,13 @@ class BaseConfigPanel(QWidget):
             y_max=self.spin_ymax.value() if self.check_ylim.isChecked() else None,
             x_major_interval=self.spin_x_major.value() if self.check_ticks.isChecked() else None,
             y_major_interval=self.spin_y_major.value() if self.check_ticks.isChecked() else None,
+            # Minor ticks: only forward when Custom Ticks is on AND value > 0
+            x_minor_interval=self.spin_x_minor.value() if (
+                self.check_ticks.isChecked() and self.spin_x_minor.value() > 0
+            ) else None,
+            y_minor_interval=self.spin_y_minor.value() if (
+                self.check_ticks.isChecked() and self.spin_y_minor.value() > 0
+            ) else None,
             ref_lines=ref_lines,
         )
 

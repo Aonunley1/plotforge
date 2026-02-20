@@ -17,7 +17,18 @@ class BoxPlotConfigPanel(BaseConfigPanel):
     """
     def __init__(self, parent: Optional[BaseConfigPanel] = None):
         super().__init__(parent)
+        self._relabel_axes()
         self._add_box_specific_ui()
+
+    def _relabel_axes(self) -> None:
+        """Rename the generic X/Y axis labels to category/value terminology."""
+        layout = self.data_group.content_area.layout()
+        x_label_widget = layout.labelForField(self.combo_x)
+        if x_label_widget:
+            x_label_widget.setText("Category (X):")
+        y_label_widget = layout.labelForField(self.combo_y)
+        if y_label_widget:
+            y_label_widget.setText("Values (Y):")
 
     def _add_box_specific_ui(self):
         # Box Options
