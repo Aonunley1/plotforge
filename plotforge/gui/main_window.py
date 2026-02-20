@@ -276,7 +276,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "Export Error", str(e))
 
     def save_figure(self):
-        if not self.current_result or not self.current_result.figure:
+        if not self.current_config or self.df is None:
             return
 
         file_path, _ = QFileDialog.getSaveFileName(
@@ -286,20 +286,47 @@ class MainWindow(QMainWindow):
             "PNG Image (*.png);;PDF (*.pdf);;SVG (*.svg)",
         )
 
-        if file_path:
-            try:
-                fig = self.current_result.figure
-                dpi = self.current_config.save.dpi if self.current_config else 300
+        if not file_path:
+            return
 
-                # Save the figure exactly as rendered on screen.
-                # constrained_layout has already computed the correct layout for
-                # the screen dimensions — resizing the figure before save causes
-                # the axes to degenerate (box plots collapse to a narrow strip).
-                # bbox_inches='tight' trims any surrounding whitespace.
-                fig.savefig(file_path, dpi=dpi, bbox_inches="tight")
+        try:
+            dpi = self.current_config.save.dpi
+            target_w, target_h = self.current_config.save.figure_size
 
-                self.status_label.setText(f"Figure saved to {file_path}")
-            except Exception as e:
-                QMessageBox.critical(self, "Save Error", str(e))
+            # 1. Generate a FRESH, independent figure specifically for saving
+            save_result = self.controller.execute(self.df, self.current_config)
+            save_fig = save_result.figure
+
+            import warnings
+            max_width = 20.0
+            current_w = target_w
+
+            # 2. Iteratively adjust width if constrained_layout fails
+            while current_w <= max_width:
+                save_fig.set_size_inches(current_w, target_h)
+                
+                with warnings.catch_warnings(record=True) as w:
+                    warnings.simplefilter("always")
+                    
+                    # Save WITHOUT bbox_inches="tight" so dimensions remain exactly as configured
+                    save_fig.savefig(file_path, dpi=dpi)
+                    
+                    layout_failed = any("constrained_layout not applied" in str(warn.message) for warn in w)
+                    
+                    if not layout_failed:
+                        break  # Saved successfully with valid layout!
+                
+                current_w += 1.0  # Expand and try again
+
+            if current_w > target_w:
+                self.status_label.setText(f"Saved at {current_w}x{target_h} (auto-expanded to fit layout) to {file_path}")
+            else:
+                self.status_label.setText(f"Figure saved exactly at {target_w}x{target_h} to {file_path}")
+
+        except Exception as e:
+            QMessageBox.critical(self, "Save Error", str(e))
+        finally:
+            if 'save_fig' in locals():
+                save_fig.clf()
 
 

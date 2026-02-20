@@ -43,12 +43,13 @@ class BoxPlotConfigPanel(BaseConfigPanel):
         # Features
         self.check_notch = QCheckBox("Notch (Median CI)")
         self.check_means = QCheckBox("Show Means")
+        self.check_points = QCheckBox("Show Data Points (Stripplot)")
         
         # Visuals
-        self.spin_width = QDoubleSpinBox()
-        self.spin_width.setRange(0.1, 1.0)
-        self.spin_width.setValue(0.8)
-        self.spin_width.setSingleStep(0.1)
+        self.spin_box_width = QDoubleSpinBox()
+        self.spin_box_width.setRange(0.1, 1.0)
+        self.spin_box_width.setValue(0.8)
+        self.spin_box_width.setSingleStep(0.1)
         
         self.spin_linewidth = QDoubleSpinBox()
         self.spin_linewidth.setRange(0.0, 5.0)
@@ -61,11 +62,12 @@ class BoxPlotConfigPanel(BaseConfigPanel):
         self.combo_palette = self._build_palette_combo()
 
         box_layout.addRow("Orientation:", self.combo_orient)
-        box_layout.addRow("Box Width:", self.spin_width)
+        box_layout.addRow("Box Width:", self.spin_box_width)
         box_layout.addRow("Line Width:", self.spin_linewidth)
         box_layout.addRow("Outlier Size:", self.spin_fliersize)
         box_layout.addRow(self.check_notch)
         box_layout.addRow(self.check_means)
+        box_layout.addRow(self.check_points)
         box_layout.addRow("Palette:", self.combo_palette)
         
         box_group.setLayout(box_layout)
@@ -80,11 +82,12 @@ class BoxPlotConfigPanel(BaseConfigPanel):
         return BoxPlotConfig(
             **base_data,
             orientation=self.combo_orient.currentData(),
-            width=self.spin_width.value(),
+            width=self.spin_box_width.value(),
             linewidth=self.spin_linewidth.value(),
             fliersize=self.spin_fliersize.value(),
             notch=self.check_notch.isChecked(),
             showmeans=self.check_means.isChecked(),
+            show_data_points=self.check_points.isChecked(),
             palette=final_palette,
             overlays=StatisticalOverlayConfig() # Empty overlays by default
         )

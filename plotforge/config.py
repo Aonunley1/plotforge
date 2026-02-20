@@ -345,6 +345,7 @@ class BoxPlotConfig(BasePlotConfig):
     # Features
     notch: bool = False
     showmeans: bool = False
+    show_data_points: bool = False  # Overlay individual points using stripplot
     
     # Styling
     # Palette inherited, but boxprops/whiskerprops can be stylized if needed.

@@ -49,10 +49,10 @@ class BarPlotConfigPanel(BaseConfigPanel):
         self.spin_capsize.setValue(0.1)
         
         # Visuals
-        self.spin_width = QDoubleSpinBox()
-        self.spin_width.setRange(0.1, 1.0)
-        self.spin_width.setValue(0.8)
-        self.spin_width.setSingleStep(0.1)
+        self.spin_bar_width = QDoubleSpinBox()
+        self.spin_bar_width.setRange(0.1, 1.0)
+        self.spin_bar_width.setValue(0.8)
+        self.spin_bar_width.setSingleStep(0.1)
         
         self.spin_alpha = QDoubleSpinBox()
         self.spin_alpha.setRange(0.0, 1.0)
@@ -72,7 +72,7 @@ class BarPlotConfigPanel(BaseConfigPanel):
         bar_layout.addRow("Estimator:", self.combo_estimator)
         bar_layout.addRow("Error Bar:", self.combo_errorbar)
         bar_layout.addRow("Capsize:", self.spin_capsize)
-        bar_layout.addRow("Bar Width:", self.spin_width)
+        bar_layout.addRow("Bar Width:", self.spin_bar_width)
         bar_layout.addRow("Opacity:", self.spin_alpha)
         bar_layout.addRow("Edge Width:", self.spin_linewidth)
         bar_layout.addRow("Edge Color:", self.combo_edgecolor)
@@ -95,7 +95,7 @@ class BarPlotConfigPanel(BaseConfigPanel):
             estimator=self.combo_estimator.currentText(),
             errorbar=errorbar_val,
             capsize=self.spin_capsize.value(),
-            width=self.spin_width.value(),
+            width=self.spin_bar_width.value(),
             alpha=self.spin_alpha.value(),
             linewidth=self.spin_linewidth.value(),
             edgecolor=self.combo_edgecolor.currentText() if self.combo_edgecolor.currentText() != "none" else None,

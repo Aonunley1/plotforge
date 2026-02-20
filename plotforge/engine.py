@@ -1023,6 +1023,35 @@ class BoxPlotEngine(BasePlotEngine):
 
         try:
             sns.boxplot(**plot_kwargs)
+            
+            # Overlay individual data points if requested
+            if getattr(config, 'show_data_points', False):
+                # We reuse the plot_kwargs but adjust it for stripplot
+                strip_kwargs = {
+                    "data": df,
+                    "x": plot_kwargs.get("x"),
+                    "y": plot_kwargs.get("y"),
+                    "hue": plot_kwargs.get("hue"),
+                    "orient": plot_kwargs.get("orient"),
+                    "palette": plot_kwargs.get("palette"),
+                    "color": plot_kwargs.get("color"),
+                    "ax": ax,
+                    "dodge": True if plot_kwargs.get("hue") else False,
+                    "alpha": 0.5,
+                    "zorder": 1,
+                    # Edge color makes points visible against similarly colored boxes
+                    "linewidth": 0.5,
+                    "edgecolor": "0.5",
+                }
+                
+                # If both are used simultaneously, we drop 'color' or 'palette' if invalid
+                if strip_kwargs["hue"] is None:
+                    strip_kwargs.pop("palette", None)
+                else:
+                    strip_kwargs.pop("color", None)
+                    
+                sns.stripplot(**strip_kwargs)
+                
         except Exception as e:
             raise ValueError(
                 f"Box plot failed: {e}\n\n"
